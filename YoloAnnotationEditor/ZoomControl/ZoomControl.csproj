@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net8.0-windows</TargetFrameworks>
+
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+    <OutputType>Library</OutputType>
+    <RootNamespace>Denxorz.ZoomControl</RootNamespace>
+    <AssemblyName>Denxorz.ZoomControl</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>
+
+    <PackageId>Denxorz.ZoomControl</PackageId>
+    <Company>Denxorz</Company>
+    <Authors>Dennis Geldhof</Authors>
+    <Copyright>Copyright © 2017-2024, Dennis Geldhof</Copyright>
+
+    <Product>ZoomControl</Product>
+    <Description>Control that allows to zoom WPF controls</Description>
+    <PackageTags>ZoomControl Denxorz WPF</PackageTags>
+
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/denxorz/ZoomControl</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/denxorz/ZoomControl</RepositoryUrl>
+
+    <Title>ZoomControl</Title>
+  </PropertyGroup>
+  
+</Project>
