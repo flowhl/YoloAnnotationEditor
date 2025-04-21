@@ -670,16 +670,12 @@ namespace YoloAnnotationEditor
             }
         }
 
-        // Modify the DisplayMainImage method to track the current image and handle edit mode:
         private void DisplayMainImage(ImageItem imageItem)
         {
             try
             {
-                // Store current image reference
-                _currentImage = imageItem;
-
                 // Check for unsaved changes before switching images
-                if (_isDirty)
+                if (_isDirty && _currentImage != null && _currentImage != imageItem)
                 {
                     var result = MessageBox.Show("You have unsaved annotation changes. Would you like to save them now?",
                         "Unsaved Changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
@@ -690,18 +686,16 @@ namespace YoloAnnotationEditor
                     }
                     else if (result == MessageBoxResult.Cancel)
                     {
-                        // Reselect the previous image
-                        foreach (var item in LvThumbnails.Items)
-                        {
-                            if (item == _currentImage)
-                            {
-                                LvThumbnails.SelectedItem = item;
-                                break;
-                            }
-                        }
+                        // Prevent the selection change by resetting the selection to the current image
+                        LvThumbnails.SelectionChanged -= LvThumbnails_SelectionChanged;
+                        LvThumbnails.SelectedItem = _currentImage;
+                        LvThumbnails.SelectionChanged += LvThumbnails_SelectionChanged;
                         return;
                     }
                 }
+
+                // Store current image reference
+                _currentImage = imageItem;
 
                 // Reset the dirty flag
                 _isDirty = false;
@@ -1136,7 +1130,6 @@ namespace YoloAnnotationEditor
                 Values = sortedDistribution.Select(pair => pair.Value).ToArray(),
                 Stroke = null,
                 Fill = new SolidColorPaint(SKColors.DodgerBlue),
-                //ToolTip = new CustomTooltip(),
                 Name = "Count"
             }
                 };
