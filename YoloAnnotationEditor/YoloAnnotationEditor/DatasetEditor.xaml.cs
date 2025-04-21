@@ -1,4 +1,8 @@
-﻿using Microsoft.Win32;
+﻿using LiveChartsCore.SkiaSharpView.Painting;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore;
+using Microsoft.Win32;
+using SkiaSharp;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -63,6 +67,9 @@ namespace YoloAnnotationEditor
 
             // Set class list
             ClassesList.ItemsSource = _classItems;
+
+            // Add this to your DatasetEditor constructor after InitializeComponent()
+            StatisticsTab.GotFocus += StatisticsTab_GotFocus;
         }
 
         #region Dynamic Filters
@@ -651,6 +658,9 @@ namespace YoloAnnotationEditor
                 // Update status
                 _isDirty = false;
                 StatusText.Text = $"Saved annotations to {Path.GetFileName(_currentImage.LabelPath)}";
+
+                // Update statistics
+                UpdateStatistics();
             }
             catch (Exception ex)
             {
@@ -854,6 +864,9 @@ namespace YoloAnnotationEditor
 
                 // Load images
                 await LoadImages();
+
+                // Update statistics tab
+                UpdateStatistics();
 
                 // Update status
                 StatusText.Text = $"Loaded {_allImages.Count} images from dataset";
@@ -1072,6 +1085,93 @@ namespace YoloAnnotationEditor
             {
                 Trace.WriteLine($"Error creating thumbnail: {ex.Message}");
                 return null;
+            }
+        }
+
+        #endregion
+
+        #region Statistics
+
+        private void StatisticsTab_GotFocus(object sender, RoutedEventArgs e)
+        {
+            if (_allImages.Count > 0)
+            {
+                UpdateStatistics();
+            }
+        }
+
+        private void UpdateStatistics()
+        {
+            try
+            {
+                // Update basic stats
+                TxtTotalImages.Text = _allImages.Count.ToString();
+                int totalAnnotations = _allImages.Sum(img => img.Annotations.Count);
+                TxtTotalAnnotations.Text = totalAnnotations.ToString();
+                TxtUniqueClasses.Text = _classNames.Count.ToString();
+
+                // Generate class distribution chart data
+                var classDistribution = new Dictionary<int, int>();
+
+                // Count annotations per class
+                foreach (var image in _allImages)
+                {
+                    foreach (var annotation in image.Annotations)
+                    {
+                        if (!classDistribution.ContainsKey(annotation.ClassId))
+                            classDistribution[annotation.ClassId] = 0;
+
+                        classDistribution[annotation.ClassId]++;
+                    }
+                }
+
+                // Sort by class ID
+                var sortedDistribution = classDistribution.OrderBy(pair => pair.Key).ToList();
+
+                // Create chart series
+                var series = new ISeries[]
+                {
+            new ColumnSeries<int>
+            {
+                Values = sortedDistribution.Select(pair => pair.Value).ToArray(),
+                Stroke = null,
+                Fill = new SolidColorPaint(SKColors.DodgerBlue),
+                //ToolTip = new CustomTooltip(),
+                Name = "Count"
+            }
+                };
+
+                // Create X-axis labels
+                var xLabels = sortedDistribution.Select(pair =>
+                    _classNames.ContainsKey(pair.Key) ? $"{pair.Key}: {_classNames[pair.Key]}" : $"Class {pair.Key}").ToArray();
+
+                // Set chart properties
+                ClassDistributionChart.Series = series;
+                ClassDistributionChart.XAxes = new Axis[]
+                {
+            new Axis
+            {
+                Labels = xLabels,
+                LabelsRotation = 45,
+                LabelsPaint = new SolidColorPaint(SKColors.Black)
+            }
+                };
+
+                ClassDistributionChart.YAxes = new Axis[]
+                {
+            new Axis
+            {
+                Name = "Number of Annotations",
+                LabelsPaint = new SolidColorPaint(SKColors.Black)
+            }
+                };
+
+                StatusText.Text = "Statistics updated";
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Error updating statistics: {ex}");
+                StatusText.Text = "Error updating statistics";
             }
         }
 
