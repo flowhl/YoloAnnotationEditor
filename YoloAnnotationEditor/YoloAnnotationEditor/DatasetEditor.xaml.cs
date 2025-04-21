@@ -42,6 +42,7 @@ namespace YoloAnnotationEditor
         private bool _isDirty = false; // Track if there are unsaved changes
         private CollectionViewSource _filteredClasses = new CollectionViewSource();
         private ImageItem _currentImage = null;
+        private List<YoloLabel> _originalAnnotations = new List<YoloLabel>();
 
         // Add this property to the DatasetEditor class:
         public bool IsEditMode => BtnEditMode.IsChecked == true;
@@ -655,6 +656,9 @@ namespace YoloAnnotationEditor
                 // Write to the label file
                 File.WriteAllLines(_currentImage.LabelPath, lines);
 
+                // Update the original annotations with the current (now saved) state
+                _originalAnnotations = DeepCopyAnnotations(_currentImage.Annotations);
+
                 // Update status
                 _isDirty = false;
                 StatusText.Text = $"Saved annotations to {Path.GetFileName(_currentImage.LabelPath)}";
@@ -684,6 +688,11 @@ namespace YoloAnnotationEditor
                     {
                         SaveAnnotations();
                     }
+                    else if (result == MessageBoxResult.No)
+                    {
+                        // Revert changes to the current image
+                        RevertChanges();
+                    }
                     else if (result == MessageBoxResult.Cancel)
                     {
                         // Prevent the selection change by resetting the selection to the current image
@@ -699,6 +708,9 @@ namespace YoloAnnotationEditor
 
                 // Reset the dirty flag
                 _isDirty = false;
+
+                // Store a deep copy of the original annotations
+                _originalAnnotations = DeepCopyAnnotations(imageItem.Annotations);
 
                 // Load full image
                 BitmapImage image = new BitmapImage();
@@ -755,6 +767,48 @@ namespace YoloAnnotationEditor
                 MessageBox.Show($"Error displaying image: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 StatusText.Text = "Error displaying image";
             }
+        }
+
+        private void RevertChanges()
+        {
+            if (_currentImage == null) return;
+
+            // Replace the current annotations with the deep copy of the original annotations
+            _currentImage.Annotations.Clear();
+            foreach (var annotation in _originalAnnotations)
+            {
+                _currentImage.Annotations.Add(annotation);
+            }
+
+            // Update class IDs
+            _currentImage.ClassIds = _originalAnnotations
+                .Select(a => a.ClassId)
+                .Distinct()
+                .ToList();
+
+            // Reset dirty flag
+            _isDirty = false;
+
+            StatusText.Text = "Reverted changes";
+        }
+
+        private List<YoloLabel> DeepCopyAnnotations(List<YoloLabel> annotations)
+        {
+            List<YoloLabel> copy = new List<YoloLabel>();
+
+            foreach (var annotation in annotations)
+            {
+                copy.Add(new YoloLabel
+                {
+                    ClassId = annotation.ClassId,
+                    CenterX = annotation.CenterX,
+                    CenterY = annotation.CenterY,
+                    Width = annotation.Width,
+                    Height = annotation.Height
+                });
+            }
+
+            return copy;
         }
 
         // Modify the DrawAnnotation method to store the annotation reference in the rectangle's Tag:
