@@ -43,6 +43,7 @@ namespace YoloAnnotationEditor
         private CollectionViewSource _filteredClasses = new CollectionViewSource();
         private ImageItem _currentImage = null;
         private List<YoloLabel> _originalAnnotations = new List<YoloLabel>();
+        private TextBlock _imageIndexCounter;
 
         // Add this property to the DatasetEditor class:
         public bool IsEditMode => BtnEditMode.IsChecked == true;
@@ -71,6 +72,9 @@ namespace YoloAnnotationEditor
 
             // Add this to your DatasetEditor constructor after InitializeComponent()
             StatisticsTab.GotFocus += StatisticsTab_GotFocus;
+
+            // Set reference to the counter
+            _imageIndexCounter = ImageIndexCounter;
         }
 
         #region Dynamic Filters
@@ -588,6 +592,7 @@ namespace YoloAnnotationEditor
         {
             // Refresh filtering
             _filteredImages.View.Refresh();
+            UpdateImageIndexCounter();
         }
 
         private void LvThumbnails_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -595,6 +600,7 @@ namespace YoloAnnotationEditor
             if (LvThumbnails.SelectedItem is ImageItem selectedImage)
             {
                 DisplayMainImage(selectedImage);
+                UpdateImageIndexCounter();
             }
         }
 
@@ -916,6 +922,8 @@ namespace YoloAnnotationEditor
                 // Update statistics tab
                 UpdateStatistics();
 
+                UpdateImageIndexCounter();
+
                 // Update status
                 StatusText.Text = $"Loaded {_allImages.Count} images from dataset";
             }
@@ -1035,6 +1043,7 @@ namespace YoloAnnotationEditor
                         .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
                                    f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                        .OrderBy(f => Path.GetFileName(f)) // Sort alphabetically by filename
                         .ToList();
 
                     // Process each image
@@ -1222,6 +1231,22 @@ namespace YoloAnnotationEditor
             }
         }
 
+        #endregion
+
+        #region Image Index
+        private void UpdateImageIndexCounter()
+        {
+            if (_imageIndexCounter != null && LvThumbnails.SelectedItem != null)
+            {
+                int currentIndex = LvThumbnails.SelectedIndex + 1;
+                int totalCount = _filteredImages.View.Cast<object>().Count();
+                _imageIndexCounter.Text = $"Image {currentIndex}/{totalCount}";
+            }
+            else if (_imageIndexCounter != null)
+            {
+                _imageIndexCounter.Text = $"Image 0/{_filteredImages.View.Cast<object>().Count()}";
+            }
+        }
         #endregion
     }
 }

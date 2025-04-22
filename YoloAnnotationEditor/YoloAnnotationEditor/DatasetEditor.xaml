@@ -46,6 +46,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Search box -->
@@ -75,6 +76,10 @@
                                 </DataTemplate>
                             </ListView.ItemTemplate>
                         </ListView>
+
+                        <!-- Image index counter -->
+                        <TextBlock Grid.Row="2" x:Name="ImageIndexCounter" Text="Image 0/0" 
+                                   HorizontalAlignment="Center" Margin="0,5,0,0"/>
                     </Grid>
 
                     <!-- Middle panel - Main image with annotations -->
