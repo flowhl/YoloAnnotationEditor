@@ -18,6 +18,7 @@ namespace YoloAnnotationEditor.Models
         private BitmapImage _thumbnail;
         private List<YoloLabel> _annotations = new List<YoloLabel>();
         private List<int> _classIds = new List<int>();
+        private bool _isEdited;
 
         public string FileName
         {
@@ -53,6 +54,19 @@ namespace YoloAnnotationEditor.Models
         {
             get => _classIds;
             set => SetProperty(ref _classIds, value);
+        }
+
+        public bool IsEdited
+        {
+            get => _isEdited;
+            set
+            {
+                if (_isEdited != value)
+                {
+                    _isEdited = value;
+                    OnPropertyChanged(nameof(IsEdited));
+                }
+            }
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

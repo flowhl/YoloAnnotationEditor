@@ -44,6 +44,7 @@ namespace YoloAnnotationEditor
         private ImageItem _currentImage = null;
         private List<YoloLabel> _originalAnnotations = new List<YoloLabel>();
         private TextBlock _imageIndexCounter;
+        private EditStateManager _editStateManager;
 
         // Add this property to the DatasetEditor class:
         public bool IsEditMode => BtnEditMode.IsChecked == true;
@@ -407,6 +408,47 @@ namespace YoloAnnotationEditor
             StatusText.Text = $"Deleted annotation";
         }
 
+        // Add these methods to the DatasetEditor class
+        private void BtnToggleEditState_Click(object sender, RoutedEventArgs e)
+        {
+            if (LvThumbnails.SelectedItem is ImageItem selectedImage && _editStateManager != null)
+            {
+                _editStateManager.ToggleEditState(selectedImage.FileName);
+                selectedImage.IsEdited = _editStateManager.IsEdited(selectedImage.FileName);
+                UpdateStatistics();
+                StatusText.Text = selectedImage.IsEdited
+                    ? $"Marked {selectedImage.FileName} as edited"
+                    : $"Marked {selectedImage.FileName} as not edited";
+            }
+        }
+
+        private void BtnMarkAllEditedUntilHere_Click(object sender, RoutedEventArgs e)
+        {
+            if (LvThumbnails.SelectedItem is ImageItem selectedImage && _editStateManager != null)
+            {
+                // Get all file names in the current order
+                var allFileNames = _filteredImages.View.Cast<ImageItem>()
+                    .TakeWhile(img => img != selectedImage)
+                    .Select(img => img.FileName)
+                    .ToList();
+
+                // Add the selected image
+                allFileNames.Add(selectedImage.FileName);
+
+                // Mark all as edited
+                _editStateManager.MarkAllEditedUntil(selectedImage.FileName, allFileNames);
+
+                // Update UI state for all images
+                foreach (var image in _allImages)
+                {
+                    image.IsEdited = _editStateManager.IsEdited(image.FileName);
+                }
+
+                UpdateStatistics();
+                StatusText.Text = $"Marked all images up to {selectedImage.FileName} as edited";
+            }
+        }
+
 
         #endregion
 
@@ -665,16 +707,28 @@ namespace YoloAnnotationEditor
                 // Update the original annotations with the current (now saved) state
                 _originalAnnotations = DeepCopyAnnotations(_currentImage.Annotations);
 
+                // Mark as edited
+                if (_editStateManager != null)
+                {
+                    _editStateManager.MarkAsEdited(_currentImage.FileName);
+                    _currentImage.IsEdited = true;
+                }
+
                 // Update status
                 _isDirty = false;
-                StatusText.Text = $"Saved annotations to {Path.GetFileName(_currentImage.LabelPath)}";
 
                 // Update statistics
                 UpdateStatistics();
+
+                string msg = $"Saved annotations to {Path.GetFileName(_currentImage.LabelPath)}";
+                StatusText.Text = msg;
+                Trace.WriteLine(msg);
+                Notify.sendSuccess("Saved annotations successfully");
+
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error saving annotations: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Notify.sendError($"Error saving annotations: {ex.Message}");
                 StatusText.Text = "Error saving annotations";
                 Trace.WriteLine($"Error saving annotations: {ex}");
             }
@@ -796,6 +850,7 @@ namespace YoloAnnotationEditor
             _isDirty = false;
 
             StatusText.Text = "Reverted changes";
+            Notify.sendInfo("Reverted changes");
         }
 
         private List<YoloLabel> DeepCopyAnnotations(List<YoloLabel> annotations)
@@ -884,6 +939,15 @@ namespace YoloAnnotationEditor
             }
         }
 
+        private void EditStateManager_EditStateChanged(object sender, EventArgs e)
+        {
+            // Update the UI when edit states change
+            if (_currentImage != null)
+            {
+                _currentImage.IsEdited = _editStateManager.IsEdited(_currentImage.FileName);
+            }
+        }
+
         #endregion
 
         #region Parse Dataset
@@ -907,6 +971,10 @@ namespace YoloAnnotationEditor
                 // Determine base path (directory containing the YAML file)
                 _datasetBasePath = System.IO.Path.GetDirectoryName(_yamlFilePath);
 
+                // Initialize the EditStateManager
+                _editStateManager = new EditStateManager(_yamlFilePath);
+                _editStateManager.EditStateChanged += EditStateManager_EditStateChanged;
+
                 // Parse YAML file
                 await Task.Run(() => ParseYamlFile());
 
@@ -922,14 +990,14 @@ namespace YoloAnnotationEditor
                 // Update statistics tab
                 UpdateStatistics();
 
-                UpdateImageIndexCounter();
-
                 // Update status
-                StatusText.Text = $"Loaded {_allImages.Count} images from dataset";
+                string msg = $"Loaded {_allImages.Count} images from dataset";
+                StatusText.Text = msg;
+                Notify.sendSuccess(msg);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading dataset: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Notify.sendError($"Error loading dataset: {ex.Message}");
                 StatusText.Text = "Error loading dataset";
                 Trace.WriteLine($"Error loading dataset: {ex}");
             }
@@ -1022,10 +1090,10 @@ namespace YoloAnnotationEditor
 
                 // Define paths to process
                 var imageDirectories = new Dictionary<string, string>
-                {
-                    { trainImagesPath, trainLabelsPath },
-                    { valImagesPath, valLabelsPath }
-                };
+        {
+            { trainImagesPath, trainLabelsPath },
+            { valImagesPath, valLabelsPath }
+        };
 
                 // Process each directory
                 foreach (var dirPair in imageDirectories)
@@ -1038,12 +1106,12 @@ namespace YoloAnnotationEditor
                         continue;
                     }
 
-                    // Get image files
+                    // Get image files and sort them alphabetically
                     var imageFiles = Directory.GetFiles(imagesDir, "*.*")
                         .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
                                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
                                    f.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                        .OrderBy(f => Path.GetFileName(f)) // Sort alphabetically by filename
+                        .OrderBy(f => Path.GetFileName(f))
                         .ToList();
 
                     // Process each image
@@ -1069,6 +1137,9 @@ namespace YoloAnnotationEditor
                         // Create thumbnail
                         BitmapImage thumbnail = await Task.Run(() => CreateThumbnail(imageFile, 200, 150));
 
+                        // Check if the image is marked as edited
+                        bool isEdited = _editStateManager.IsEdited(fileName);
+
                         // Add to collection
                         await Dispatcher.InvokeAsync(() =>
                         {
@@ -1079,11 +1150,15 @@ namespace YoloAnnotationEditor
                                 LabelPath = labelFile,
                                 Thumbnail = thumbnail,
                                 Annotations = labels,
-                                ClassIds = labels.Select(l => l.ClassId).Distinct().ToList()
+                                ClassIds = labels.Select(l => l.ClassId).Distinct().ToList(),
+                                IsEdited = isEdited
                             });
                         });
                     }
                 }
+
+                // Update image index counter
+                UpdateImageIndexCounter();
             }
             catch (Exception ex)
             {
@@ -1166,6 +1241,10 @@ namespace YoloAnnotationEditor
                 int totalAnnotations = _allImages.Sum(img => img.Annotations.Count);
                 TxtTotalAnnotations.Text = totalAnnotations.ToString();
                 TxtUniqueClasses.Text = _classNames.Count.ToString();
+
+                // Add count of edited images
+                int editedCount = _allImages.Count(img => img.IsEdited);
+                TxtEditedImages.Text = $"{editedCount} ({(editedCount * 100.0 / _allImages.Count):F1}%)";
 
                 // Generate class distribution chart data
                 var classDistribution = new Dictionary<int, int>();

@@ -9,6 +9,21 @@
              d:DesignHeight="650" d:DesignWidth="1000">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- Add converter to map boolean to color -->
+        <Style x:Key="EditStateIndicator" TargetType="Ellipse">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+            <Setter Property="Margin" Value="5,0"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsEdited}" Value="True">
+                    <Setter Property="Fill" Value="Green"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsEdited}" Value="False">
+                    <Setter Property="Fill" Value="Gray"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -47,6 +62,7 @@
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <!-- Search box -->
@@ -59,7 +75,7 @@
                             <TextBox Grid.Column="1" x:Name="TxtSearch" TextChanged="TxtSearch_TextChanged" Margin="0"/>
                         </Grid>
 
-                        <!-- Thumbnail list -->
+                        <!-- Thumbnail list with edit indicators -->
                         <ListView Grid.Row="1" x:Name="LvThumbnails" SelectionChanged="LvThumbnails_SelectionChanged"
                                   ScrollViewer.HorizontalScrollBarVisibility="Disabled" BorderThickness="1" BorderBrush="#FFABADB3">
                             <ListView.ItemTemplate>
@@ -69,9 +85,17 @@
                                             <RowDefinition Height="Auto"/>
                                             <RowDefinition Height="Auto"/>
                                         </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
 
-                                        <Image Grid.Row="0" Source="{Binding Thumbnail}" Width="200" Height="150" Stretch="Uniform"/>
-                                        <TextBlock Grid.Row="1" Text="{Binding FileName}" TextWrapping="Wrap" Margin="0,4,0,4"/>
+                                        <!-- Edit state indicator -->
+                                        <Ellipse Grid.Row="0" Grid.Column="0" Style="{StaticResource EditStateIndicator}" 
+                                                 VerticalAlignment="Top" Margin="0,5,5,0"/>
+
+                                        <Image Grid.Row="0" Grid.Column="1" Source="{Binding Thumbnail}" Width="190" Height="150" Stretch="Uniform"/>
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Text="{Binding FileName}" TextWrapping="Wrap" Margin="0,4,0,4"/>
                                     </Grid>
                                 </DataTemplate>
                             </ListView.ItemTemplate>
@@ -79,7 +103,15 @@
 
                         <!-- Image index counter -->
                         <TextBlock Grid.Row="2" x:Name="ImageIndexCounter" Text="Image 0/0" 
-                                   HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                                   HorizontalAlignment="Center" Margin="0,5,0,5"/>
+
+                        <!-- Edit state buttons -->
+                        <StackPanel Grid.Row="3" Orientation="Vertical" Margin="0,5,0,0">
+                            <Button x:Name="BtnToggleEditState" Content="Toggle Edit State" 
+                                    Click="BtnToggleEditState_Click" Margin="0,0,0,5" Padding="5,2"/>
+                            <Button x:Name="BtnMarkAllEditedUntilHere" Content="Mark All Edited Until Here" 
+                                    Click="BtnMarkAllEditedUntilHere_Click" Margin="0,0,0,5" Padding="5,2"/>
+                        </StackPanel>
                     </Grid>
 
                     <!-- Middle panel - Main image with annotations -->
@@ -104,11 +136,11 @@
                                         <Image x:Name="MainImage" Stretch="None" HorizontalAlignment="Center" VerticalAlignment="Center" PreviewMouseDown="MainImage_MouseDown" MouseMove="MainImage_MouseMove" MouseUp="MainImage_MouseUp"/>
                                         <Canvas x:Name="AnnotationCanvas" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         <Rectangle x:Name="SelectionRectangle" 
-           Stroke="Yellow" 
-           StrokeThickness="2" 
-           StrokeDashArray="4 2"
-           Fill="#3FFFFF00" 
-           Visibility="Collapsed"/>
+                                                  Stroke="Yellow" 
+                                                  StrokeThickness="2" 
+                                                  StrokeDashArray="4 2"
+                                                  Fill="#3FFFFF00" 
+                                                  Visibility="Collapsed"/>
                                     </Grid>
                                 </zoomcontrol:ZoomControl>
                             </Grid>
@@ -177,6 +209,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Text="Dataset Metadata" 
@@ -190,6 +223,9 @@
 
                             <TextBlock Grid.Row="3" Grid.Column="0" Text="Unique Classes:"/>
                             <TextBlock Grid.Row="3" Grid.Column="1" x:Name="TxtUniqueClasses" Text="0"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Edited Images:"/>
+                            <TextBlock Grid.Row="4" Grid.Column="1" x:Name="TxtEditedImages" Text="0"/>
                         </Grid>
                     </Border>
 
