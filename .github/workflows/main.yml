@@ -1,0 +1,88 @@
+name: Build, Test, and Package App
+
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: write
+
+jobs:
+  check_version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      should_build: ${{ steps.check-release.outputs.should_build }}
+      
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Get Version from Project File
+        id: get-version
+        shell: bash
+        run: echo "version=$(grep -oE '<FileVersion>[^<]+' YoloAnnotationEditor/YoloAnnotationEditor/YoloAnnotationEditor.csproj | sed 's/<FileVersion>//')" >> $GITHUB_OUTPUT
+
+      - name: Echo Version
+        run: echo "The version is ${{ steps.get-version.outputs.version }}"
+        
+      - name: Check if release exists
+        id: check-release
+        run: |
+          TAG_NAME="v${{ steps.get-version.outputs.version }}"
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases/tags/${TAG_NAME}")
+          
+          if [ "$HTTP_STATUS" -eq "404" ]; then
+            echo "Release does not exist, proceed with build"
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release with tag ${TAG_NAME} already exists, skipping build"
+            echo "should_build=false" >> $GITHUB_OUTPUT
+          fi
+
+  test:
+    runs-on: windows-latest
+    # Always run tests regardless of version
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+      
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: "8.0.x"
+      
+      - name: Restore dependencies
+        run: dotnet restore YoloAnnotationEditor/YoloAnnotationEditor.sln
+      
+      - name: Build solution
+        run: dotnet build YoloAnnotationEditor/YoloAnnotationEditor.sln --configuration Release --no-restore
+        continue-on-error: true
+      
+      - name: Run tests
+        run: dotnet test YoloAnnotationEditor/YoloAnnotationEditor.sln --configuration Release --no-build --verbosity normal
+  
+  build:
+    needs: [check_version, test]
+    if: needs.check_version.outputs.should_build == 'true'
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Publish .NET project
+        run: dotnet publish YoloAnnotationEditor/YoloAnnotationEditor/YoloAnnotationEditor.csproj -c Release --self-contained -r win-x64 -o .\publish
+
+      - name: Create Velopack Release
+        run: |
+          dotnet tool install -g vpk
+          vpk download github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }}
+          vpk pack -u YoloAnnotationEditor -v ${{ needs.check_version.outputs.version }} -p publish -c win -r win-x64 --packTitle "YoloAnnotationEditor" --packAuthors "Florian Wahl"
+          vpk upload github --repoUrl https://github.com/${{ github.repository }} --token ${{ secrets.GITHUB_TOKEN }} --publish -c win --releaseName "YoloAnnotationEditor ${{ needs.check_version.outputs.version }}" --tag v${{ needs.check_version.outputs.version }}
