@@ -30,7 +30,7 @@ public partial class MainWindow : Window
         {
 #if DEBUG
 #else
-                AppUpdates.AppUpdateManager.CheckForUpdates();
+                AppUpdateManager.CheckForUpdates();
 #endif
         }
         catch (Exception ex)
