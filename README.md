@@ -1,8 +1,5 @@
 # YOLO Annotation Editor
 
-![GitHub license](https://img.shields.io/github/license/flowhl/YoloAnnotationEditor)
-![GitHub release](https://img.shields.io/github/v/release/flowhl/YoloAnnotationEditor)
-
 A feature-rich WPF application for viewing, editing, and managing YOLO format datasets for machine learning. Designed for Yolo v11 Datasets.
 
 ![image](https://github.com/user-attachments/assets/9e0ef580-a20b-4991-ba3a-0bd5572df280)
