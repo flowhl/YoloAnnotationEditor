@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\ZoomControl\ZoomControl.csproj" />
+    <ProjectReference Include="..\ZoomControl\ZoomControl.csproj" />
   </ItemGroup>
 
 </Project>
