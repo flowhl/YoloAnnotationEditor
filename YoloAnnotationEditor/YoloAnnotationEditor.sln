@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35825.156 d17.13
+VisualStudioVersion = 17.13.35825.156
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoloAnnotationEditor", "YoloAnnotationEditor\YoloAnnotationEditor.csproj", "{574ACF26-FBF5-4694-885E-D0C7550ED33D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZoomControl", "ZoomControl\ZoomControl.csproj", "{1479D109-0CBC-4AE4-C6AE-A193B3C8E304}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YoloAnnotationEditorTest", "YoloAnnotationEditorTest\YoloAnnotationEditorTest.csproj", "{2710F706-7B4A-46E0-8B3A-595E9343ABCA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,6 +25,10 @@ Global
 		{1479D109-0CBC-4AE4-C6AE-A193B3C8E304}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1479D109-0CBC-4AE4-C6AE-A193B3C8E304}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1479D109-0CBC-4AE4-C6AE-A193B3C8E304}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2710F706-7B4A-46E0-8B3A-595E9343ABCA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2710F706-7B4A-46E0-8B3A-595E9343ABCA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2710F706-7B4A-46E0-8B3A-595E9343ABCA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2710F706-7B4A-46E0-8B3A-595E9343ABCA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
