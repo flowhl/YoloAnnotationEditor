@@ -2,7 +2,7 @@
 
 A feature-rich WPF application for viewing, editing, and managing YOLO format datasets for machine learning. Designed for Yolo v11 Datasets.
 
-![image](https://github.com/user-attachments/assets/9e0ef580-a20b-4991-ba3a-0bd5572df280)
+![image](https://github.com/user-attachments/assets/49975b66-5f5b-4190-b599-1f1444a097aa)
 
 
 ## Features
