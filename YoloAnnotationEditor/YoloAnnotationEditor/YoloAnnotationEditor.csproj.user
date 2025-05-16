@@ -5,5 +5,11 @@
     <Compile Update="DatasetEditor.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="YamlEditor.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="YamlEditorControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
 </Project>
