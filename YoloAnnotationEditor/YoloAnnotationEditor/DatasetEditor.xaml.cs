@@ -1114,6 +1114,38 @@ namespace YoloAnnotationEditor
                         .OrderBy(f => Path.GetFileName(f))
                         .ToList();
 
+                    //Check if we have images without labels
+                    bool missingLabelFiles = false;
+                    foreach (var imageFile in imageFiles)
+                    {
+                        string fileNameWithoutExt = Path.GetFileNameWithoutExtension(imageFile);
+                        string labelFile = Path.Combine(labelsDir, fileNameWithoutExt + ".txt");
+                        if (!File.Exists(labelFile))
+                        {
+                            missingLabelFiles = true;
+                            break;
+                        }
+                    }
+                    //Ask user if we should generate empty label files
+                    if (missingLabelFiles)
+                    {
+                        var result = MessageBox.Show("Some images do not have corresponding label files. Would you like to generate empty label files for them?",
+                            "Missing Label Files", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                        if (result == MessageBoxResult.Yes)
+                        {
+                            foreach (var imageFile in imageFiles)
+                            {
+                                string fileNameWithoutExt = Path.GetFileNameWithoutExtension(imageFile);
+                                string labelFile = Path.Combine(labelsDir, fileNameWithoutExt + ".txt");
+                                if (!File.Exists(labelFile))
+                                {
+                                    File.Create(labelFile).Close();
+                                    Trace.WriteLine($"Created empty label file: {labelFile}");
+                                }
+                            }
+                        }
+                    }
+
                     // Process each image
                     foreach (var imageFile in imageFiles)
                     {

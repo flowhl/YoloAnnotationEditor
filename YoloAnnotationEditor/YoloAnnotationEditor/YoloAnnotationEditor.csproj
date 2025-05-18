@@ -19,8 +19,14 @@
     <PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" Version="2.0.0-rc5.4" />
     <PackageReference Include="Notifications.Wpf" Version="0.1.1" />
     <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="OpenCvSharp4" Version="4.11.0.20250507" />
+    <PackageReference Include="OpenCvSharp4.Extensions" Version="4.11.0.20250507" />
+    <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.11.0.20250507" />
+    <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
+    <PackageReference Include="OpenCvSharp4.WpfExtensions" Version="4.11.0.20250507" />
     <PackageReference Include="Velopack" Version="0.0.1053" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    <PackageReference Include="YoloDotNet" Version="2.3.0" />
   </ItemGroup>
 
   <ItemGroup>

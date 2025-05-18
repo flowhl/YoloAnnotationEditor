@@ -1,0 +1,60 @@
+﻿<UserControl x:Class="YoloAnnotationEditor.YoloPreview"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:YoloAnnotationEditor" xmlns:skia="clr-namespace:SkiaSharp.Views.WPF;assembly=SkiaSharp.Views.WPF"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Configuration Panel -->
+        <Grid Grid.Row="0" Margin="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- ONNX Model Selection -->
+            <Label Grid.Row="0" Grid.Column="0" Content="ONNX Model:" VerticalAlignment="Center" />
+            <TextBox Grid.Row="0" Grid.Column="1" x:Name="OnnxPathTextBox" Margin="5" IsReadOnly="True" />
+            <Button Grid.Row="0" Grid.Column="2" x:Name="BrowseButton" Content="Browse" Margin="5" Width="80" Click="BrowseButton_Click" />
+
+            <!-- Source Selection -->
+            <Label Grid.Row="1" Grid.Column="0" Content="Source Type:" VerticalAlignment="Center" />
+            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                <RadioButton x:Name="WebcamRadioButton" Content="Webcam" Margin="5" IsChecked="True" Checked="SourceType_Changed" />
+                <RadioButton x:Name="ScreenRadioButton" Content="Screen" Margin="5" Checked="SourceType_Changed" />
+            </StackPanel>
+
+            <!-- Device Selection -->
+            <Label Grid.Row="2" Grid.Column="0" Content="Device:" VerticalAlignment="Center" />
+            <ComboBox Grid.Row="2" Grid.Column="1" x:Name="DeviceComboBox" Margin="5" SelectionChanged="DeviceComboBox_SelectionChanged" />
+            <Button Grid.Row="2" Grid.Column="2" x:Name="RefreshButton" Content="Refresh" Margin="5" Width="80" Click="RefreshButton_Click" />
+        </Grid>
+
+        <!-- Video Feed -->
+        <skia:SKElement Grid.Row="1" x:Name="VideoFeedFrame" PaintSurface="UpdateVideoFeedFrame" />
+
+        <!-- Control Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" Margin="20">
+            <CheckBox x:Name="EnableDetectionCheckBox" Content="Enable YOLO Detection" 
+          IsChecked="True" Margin="10,0,0,0" VerticalAlignment="Center"
+          Checked="EnableDetectionCheckBox_CheckedChanged"
+          Unchecked="EnableDetectionCheckBox_CheckedChanged"/>
+            <Button x:Name="StartButton" Content="Start Capture" Width="120" Height="30" Padding="10,0,10,0" Margin="0,0,10,0" Click="StartButton_Click" />
+            <Button x:Name="StopButton" Content="Stop Capture" Width="120" Height="30" Padding="10,0,10,0" Click="StopButton_Click" IsEnabled="False" />
+        </StackPanel>
+    </Grid>
+</UserControl>

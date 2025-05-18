@@ -11,5 +11,8 @@
     <Compile Update="YamlEditorControl.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="YoloPreview.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
 </Project>
