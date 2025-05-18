@@ -1,7 +1,7 @@
 # YOLO Annotation Editor
 A comprehensive WPF application for **annotating images**, **editing YAML configurations**, and **previewing YOLO object detection** - the complete toolkit for managing YOLO format datasets. Designed for Yolo v11 Datasets.
 ![image](https://github.com/user-attachments/assets/49975b66-5f5b-4190-b599-1f1444a097aa)
-![image](https://github.com/user-attachments/assets/1004b75e-fc22-4d74-b437-d0128f000a63)
+![image](https://github.com/user-attachments/assets/59f38549-7757-459a-8233-4f9182b9d47a)
 ![image](https://github.com/user-attachments/assets/a110f64c-c802-4ff5-a797-70220d3a056a)
 
 
