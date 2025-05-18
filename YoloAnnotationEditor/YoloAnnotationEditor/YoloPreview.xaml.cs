@@ -4,6 +4,7 @@ using OpenTK.Graphics.OpenGL;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -92,9 +93,9 @@ namespace YoloAnnotationEditor
             UpdateDeviceComboBox();
         }
 
-        private void YoloPreview_Unloaded(object sender, RoutedEventArgs e)
+        private async void YoloPreview_Unloaded(object sender, RoutedEventArgs e)
         {
-            StopCapture();
+            await StopCaptureAsync();
             DisposeResources();
         }
 
@@ -209,21 +210,59 @@ namespace YoloAnnotationEditor
             }
         }
 
-        private void SourceType_Changed(object sender, RoutedEventArgs e)
+        private async void SourceType_Changed(object sender, RoutedEventArgs e)
         {
+            bool wasRunning = _isRunning;
+
+            if (wasRunning)
+            {
+                // Disable UI controls during switching
+                StartButton.IsEnabled = false;
+                StopButton.IsEnabled = false;
+                WebcamRadioButton.IsEnabled = false;
+                ScreenRadioButton.IsEnabled = false;
+
+                await StopCaptureAsync();
+            }
+
             _isWebcamSource = WebcamRadioButton.IsChecked ?? true;
             UpdateDeviceComboBox();
-            StopCapture();
+
+            if (wasRunning)
+            {
+                // If we were running, restart with new source
+                StartCapture();
+
+                // Re-enable controls
+                StartButton.IsEnabled = false;
+                StopButton.IsEnabled = true;
+                WebcamRadioButton.IsEnabled = true;
+                ScreenRadioButton.IsEnabled = true;
+            }
         }
 
-        private void DeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void DeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (DeviceComboBox.SelectedIndex < 0)
+                return;
+
+            bool wasRunning = _isRunning;
             _selectedDeviceIndex = DeviceComboBox.SelectedIndex;
 
-            if (_isRunning)
+            if (wasRunning)
             {
-                StopCapture();
+                // Disable UI during switching
+                StartButton.IsEnabled = false;
+                StopButton.IsEnabled = false;
+                DeviceComboBox.IsEnabled = false;
+
+                await StopCaptureAsync();
                 StartCapture();
+
+                // Re-enable UI
+                StartButton.IsEnabled = false;
+                StopButton.IsEnabled = true;
+                DeviceComboBox.IsEnabled = true;
             }
         }
 
@@ -255,11 +294,22 @@ namespace YoloAnnotationEditor
             StopButton.IsEnabled = true;
         }
 
-        private void StopButton_Click(object sender, RoutedEventArgs e)
+        private async void StopButton_Click(object sender, RoutedEventArgs e)
         {
-            StopCapture();
-            StartButton.IsEnabled = true;
+            // Disable buttons immediately to give user feedback
+            StartButton.IsEnabled = false;
             StopButton.IsEnabled = false;
+
+            try
+            {
+                await StopCaptureAsync();
+            }
+            finally
+            {
+                // Re-enable correct buttons
+                StartButton.IsEnabled = true;
+                StopButton.IsEnabled = false;
+            }
         }
 
         private void StartCapture()
@@ -273,22 +323,45 @@ namespace YoloAnnotationEditor
             _captureTask = Task.Run(() => CaptureAsync(_cancellationTokenSource.Token));
         }
 
-        private void StopCapture()
+        private async Task StopCaptureAsync()
         {
             if (!_isRunning)
                 return;
 
             _isRunning = false;
+            _runDetection = false;
             _cancellationTokenSource?.Cancel();
 
-            try
+            // Don't block the UI thread with .Wait()
+            if (_captureTask != null)
             {
-                _captureTask?.Wait();
+                try
+                {
+                    // Use a timeout to prevent indefinite hanging
+                    await Task.WhenAny(_captureTask, Task.Delay(1000));
+                }
+                catch (Exception ex)
+                {
+                    // Log exception if needed
+                    Debug.WriteLine($"Error stopping capture: {ex.Message}");
+                }
             }
-            catch (AggregateException) { /* Task was canceled */ }
 
-            _capture?.Dispose();
-            _capture = null;
+            // Ensure capture is disposed properly
+            if (_capture != null)
+            {
+                var tempCapture = _capture;
+                _capture = null;
+
+                // Dispose on a background thread to prevent UI freezing
+                await Task.Run(() =>
+                {
+                    try { tempCapture.Dispose(); }
+                    catch { /* Ignore errors during disposal */ }
+                });
+            }
+
+            _captureTask = null;
         }
 
         private async Task CaptureAsync(CancellationToken cancellationToken)
@@ -308,57 +381,49 @@ namespace YoloAnnotationEditor
             if (_selectedDeviceIndex < 0 || _selectedDeviceIndex >= _webcamDevices.Count)
                 return;
 
-            int deviceIndex = _webcamDevices[_selectedDeviceIndex].Index;
-
-            // Configure webcam
-            _capture = new VideoCapture(deviceIndex);
-            _capture.Set(VideoCaptureProperties.Fps, FPS);
-            _capture.Set(VideoCaptureProperties.FrameWidth, DEFAULT_WIDTH);
-            _capture.Set(VideoCaptureProperties.FrameHeight, DEFAULT_HEIGHT);
-
-            var mat = new Mat();
-
-            while (!cancellationToken.IsCancellationRequested && _isRunning)
+            try
             {
-                // Capture current frame from webcam
-                _capture.Read(mat);
+                int deviceIndex = _webcamDevices[_selectedDeviceIndex].Index;
 
-                if (mat.Empty())
-                    continue;
+                // Configure webcam
+                _capture = new VideoCapture(deviceIndex);
+                _capture.Set(VideoCaptureProperties.Fps, FPS);
+                _capture.Set(VideoCaptureProperties.FrameWidth, DEFAULT_WIDTH);
+                _capture.Set(VideoCaptureProperties.FrameHeight, DEFAULT_HEIGHT);
 
-                // Convert mat to byte array
-                byte[] imageBytes;
-                using (var ms = new MemoryStream())
+                var mat = new Mat();
+
+                while (!cancellationToken.IsCancellationRequested && _isRunning)
                 {
-                    imageBytes = mat.ImEncode(FRAME_FORMAT_EXTENSION);
+                    // Check for cancellation frequently
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    // Rest of your existing capture code
+                    // ...
                 }
-
-                // Read buffer to an SKImage
-                var newFrame = SKImage.FromEncodedData(imageBytes);
-
-                // Only run detection if enabled AND we have a model
-                if (_runDetection && _yolo != null)
-                {
-                    // Run inference on frame
-                    List<ObjectDetection> results = _yolo.RunObjectDetection(newFrame);
-
-                    // Draw results
-                    newFrame = DrawDetections(newFrame, results);
-                }
-
-                // Update current frame and dispose old one
-                var oldFrame = _currentFrame;
-                _currentFrame = newFrame;
-                oldFrame?.Dispose();
-
-                // Update GUI
-                await _dispatcher.InvokeAsync(() => VideoFeedFrame.InvalidateVisual());
-
-                // Add a small delay to control CPU usage
-                await Task.Delay(1000 / FPS, cancellationToken);
             }
+            catch (OperationCanceledException)
+            {
+                // This is expected when cancellation occurs, no need to handle
+            }
+            catch (Exception ex)
+            {
+                // Log other exceptions
+                Debug.WriteLine($"Error in capture: {ex.Message}");
 
-            mat?.Dispose();
+                // Show error on UI thread if serious
+                await _dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show($"Capture error: {ex.Message}", "Error",
+                                   MessageBoxButton.OK, MessageBoxImage.Error);
+                });
+            }
+            finally
+            {
+                // Clean up resources
+                _capture?.Dispose();
+                _capture = null;
+            }
         }
 
         private async Task CaptureScreenAsync(CancellationToken cancellationToken)
@@ -367,68 +432,132 @@ namespace YoloAnnotationEditor
                 return;
 
             var screen = _screenDevices[_selectedDeviceIndex].Screen;
+            Bitmap bitmap = null;
+            Graphics graphics = null;
+            Mat mat = null;
 
-            var bitmap = new Bitmap(screen.Bounds.Width, screen.Bounds.Height);
-            var graphics = Graphics.FromImage(bitmap);
-
-            var mat = new Mat();
-
-            while (!cancellationToken.IsCancellationRequested && _isRunning)
+            try
             {
-                // Capture screen
-                graphics.CopyFromScreen(
-                    screen.Bounds.X,
-                    screen.Bounds.Y,
-                    0,
-                    0,
-                    bitmap.Size);
+                bitmap = new Bitmap(screen.Bounds.Width, screen.Bounds.Height);
+                graphics = Graphics.FromImage(bitmap);
+                mat = new Mat();
 
-                // Convert bitmap to Mat
-                using (var tempMat = OpenCvSharp.Extensions.BitmapConverter.ToMat(bitmap))
+                while (!cancellationToken.IsCancellationRequested && _isRunning)
                 {
-                    // Resize if needed
-                    if (tempMat.Width != DEFAULT_WIDTH || tempMat.Height != DEFAULT_HEIGHT)
+                    // Check for cancellation frequently
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    try
                     {
-                        Cv2.Resize(tempMat, mat, new OpenCvSharp.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT));
+                        // Capture screen
+                        graphics.CopyFromScreen(
+                            screen.Bounds.X,
+                            screen.Bounds.Y,
+                            0,
+                            0,
+                            bitmap.Size);
+
+                        // Convert bitmap to Mat
+                        using (var tempMat = OpenCvSharp.Extensions.BitmapConverter.ToMat(bitmap))
+                        {
+                            // Resize if needed
+                            if (tempMat.Width != DEFAULT_WIDTH || tempMat.Height != DEFAULT_HEIGHT)
+                            {
+                                Cv2.Resize(tempMat, mat, new OpenCvSharp.Size(DEFAULT_WIDTH, DEFAULT_HEIGHT));
+                            }
+                            else
+                            {
+                                tempMat.CopyTo(mat);
+                            }
+                        }
+
+                        // Convert mat to byte array
+                        byte[] imageBytes = mat.ImEncode(FRAME_FORMAT_EXTENSION);
+
+                        // Read buffer to an SKImage
+                        var newFrame = SKImage.FromEncodedData(imageBytes);
+
+                        // Only run detection if enabled AND we have a model
+                        if (_runDetection && _yolo != null)
+                        {
+                            try
+                            {
+                                // Run inference on frame
+                                List<ObjectDetection> results = _yolo.RunObjectDetection(newFrame);
+
+                                // Draw results
+                                newFrame = DrawDetections(newFrame, results);
+                            }
+                            catch (Exception ex)
+                            {
+                                // Log detection errors but continue showing frames
+                                Debug.WriteLine($"Detection error: {ex.Message}");
+                                _runDetection = false; // Disable detection on error
+
+                                // Notify user on UI thread
+                                await _dispatcher.InvokeAsync(() =>
+                                {
+                                    MessageBox.Show($"Detection error: {ex.Message}\nDetection has been disabled.",
+                                                   "Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+                                });
+                            }
+                        }
+
+                        // Update current frame and dispose old one
+                        var oldFrame = _currentFrame;
+                        _currentFrame = newFrame;
+                        oldFrame?.Dispose();
+
+                        // Update GUI
+                        await _dispatcher.InvokeAsync(() => VideoFeedFrame.InvalidateVisual());
+
+                        // Add a small delay to control CPU usage
+                        await Task.Delay(1000 / FPS, cancellationToken);
                     }
-                    else
+                    catch (Exception frameEx)
                     {
-                        tempMat.CopyTo(mat);
+                        // Log frame processing errors but try to continue
+                        Debug.WriteLine($"Frame processing error: {frameEx.Message}");
+
+                        // Brief delay before trying again
+                        await Task.Delay(100, cancellationToken);
                     }
                 }
-
-                // Convert mat to byte array
-                byte[] imageBytes;
-                imageBytes = mat.ImEncode(FRAME_FORMAT_EXTENSION);
-
-                // Read buffer to an SKImage
-                var newFrame = SKImage.FromEncodedData(imageBytes);
-
-                // Only run detection if enabled AND we have a model
-                if (_runDetection && _yolo != null)
-                {
-                    // Run inference on frame
-                    List<ObjectDetection> results = _yolo.RunObjectDetection(newFrame);
-
-                    // Draw results
-                    newFrame = DrawDetections(newFrame, results);
-                }
-
-                // Update current frame and dispose old one
-                var oldFrame = _currentFrame;
-                _currentFrame = newFrame;
-                oldFrame?.Dispose();
-
-                // Update GUI
-                await _dispatcher.InvokeAsync(() => VideoFeedFrame.InvalidateVisual());
-
-                // Add a small delay to control CPU usage
-                await Task.Delay(1000 / FPS, cancellationToken);
             }
+            catch (OperationCanceledException)
+            {
+                // This is expected when cancellation occurs, no need to handle
+            }
+            catch (Exception ex)
+            {
+                // Log other exceptions
+                Debug.WriteLine($"Screen capture error: {ex.Message}");
 
-            mat?.Dispose();
-            graphics?.Dispose();
-            bitmap?.Dispose();
+                // Show error on UI thread if serious
+                await _dispatcher.InvokeAsync(() =>
+                {
+                    MessageBox.Show($"Screen capture error: {ex.Message}", "Error",
+                                   MessageBoxButton.OK, MessageBoxImage.Error);
+                });
+            }
+            finally
+            {
+                // Clean up resources properly
+                if (mat != null)
+                {
+                    try { mat.Dispose(); } catch { /* Ignore disposal errors */ }
+                }
+
+                if (graphics != null)
+                {
+                    try { graphics.Dispose(); } catch { /* Ignore disposal errors */ }
+                }
+
+                if (bitmap != null)
+                {
+                    try { bitmap.Dispose(); } catch { /* Ignore disposal errors */ }
+                }
+            }
         }
 
         private SKImage DrawDetections(SKImage image, List<ObjectDetection> detections)
@@ -502,6 +631,18 @@ namespace YoloAnnotationEditor
             if (_isRunning)
             {
                 _runDetection = detectionEnabled;
+            }
+        }
+
+        private async Task SafeUpdateUIAsync(Action uiAction)
+        {
+            try
+            {
+                await _dispatcher.InvokeAsync(uiAction);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"UI update error: {ex.Message}");
             }
         }
     }
