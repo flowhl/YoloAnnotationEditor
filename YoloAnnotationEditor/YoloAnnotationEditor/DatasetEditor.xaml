@@ -34,6 +34,10 @@
 
         <!-- Top controls -->
         <Grid Grid.Row="0" Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
@@ -43,6 +47,12 @@
             <TextBlock Grid.Column="0" Text="YAML File:" VerticalAlignment="Center" Margin="0,0,10,0"/>
             <TextBox Grid.Column="1" x:Name="TxtYamlPath" IsReadOnly="True" Margin="0,0,10,0"/>
             <Button Grid.Column="2" x:Name="BtnBrowseYaml" Content="Browse..." Click="BtnBrowseYaml_Click" Width="80"/>
+
+            <!-- ONNX Model Selection -->
+            <Label Grid.Row="1" Grid.Column="0" Content="ONNX Model:" VerticalAlignment="Center" />
+            <TextBox Grid.Row="1" Grid.Column="1" x:Name="OnnxPathTextBox" Margin="5" IsReadOnly="True" />
+            <Button Grid.Row="1" Grid.Column="2" x:Name="BrowseOnnxButton" Content="Browse" Margin="5" Width="80" Click="BrowseOnnxButton_Click" />
+
         </Grid>
 
         <!-- Main content -->
@@ -126,6 +136,8 @@
                             <ToggleButton x:Name="BtnEditMode" Content="Edit Mode" Click="BtnEditMode_Click" Margin="0,0,10,0" Padding="5,2"/>
                             <Button x:Name="BtnSaveAnnotations" Content="Save Changes" Click="BtnSaveAnnotations_Click" Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
                             <Button x:Name="BtnDeleteSelected" Content="Delete Selected" Click="BtnDeleteSelected_Click" Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
+                            <Button x:Name="BtnDetectUsingYolo" Content="Detect with YOLO" Click="BtnDetectUsingYolo_Click"  Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
+                            <Button x:Name="BtnRedetectUsingYolo" Content="Redetect with YOLO" ToolTip="This will clear all previous labels for this image" Click="BtnRedetectUsingYolo_Click"  Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
                         </StackPanel>
 
                         <!-- Image container -->

@@ -26,6 +26,10 @@ using Path = System.IO.Path;
 using Point = System.Windows.Point;
 using Rectangle = System.Windows.Shapes.Rectangle;
 using UserControl = System.Windows.Controls.UserControl;
+using YoloDotNet;
+using YoloDotNet.Models;
+using YoloDotNet.Enums;
+using SkiaSharp.Views.WPF;
 
 namespace YoloAnnotationEditor
 {
@@ -45,6 +49,9 @@ namespace YoloAnnotationEditor
         private List<YoloLabel> _originalAnnotations = new List<YoloLabel>();
         private TextBlock _imageIndexCounter;
         private EditStateManager _editStateManager;
+
+        //YOLO
+        private Yolo _yolo = null;
 
         // Add this property to the DatasetEditor class:
         public bool IsEditMode => BtnEditMode.IsChecked == true;
@@ -1359,5 +1366,159 @@ namespace YoloAnnotationEditor
             }
         }
         #endregion
+
+        #region AI Annotations
+
+        private void BrowseOnnxButton_Click(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Filter = "ONNX Models (*.onnx)|*.onnx|All files (*.*)|*.*",
+                Title = "Select ONNX Model"
+            };
+
+            if (openFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                OnnxPathTextBox.Text = openFileDialog.FileName;
+
+                // Dispose existing YOLO model if exists
+                _yolo?.Dispose();
+                _yolo = null;
+
+                try
+                {
+                    // Create new YOLO model
+                    _yolo = new Yolo(new YoloOptions()
+                    {
+                        OnnxModel = openFileDialog.FileName,
+                        ModelType = ModelType.ObjectDetection,
+                        Cuda = true,
+                        PrimeGpu = false
+                    });
+
+                    MessageBox.Show("YOLO model loaded successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Failed to load YOLO model: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    OnnxPathTextBox.Text = string.Empty;
+                }
+            }
+        }
+
+        private void BtnDetectUsingYolo_Click(object sender, RoutedEventArgs e)
+        {
+            GenerateAnnotationsFromYolo(false);
+        }
+
+        private void BtnRedetectUsingYolo_Click(object sender, RoutedEventArgs e)
+        {
+            GenerateAnnotationsFromYolo(true);
+        }
+
+        private void GenerateAnnotationsFromYolo(bool clearAnnoations)
+        {
+            if (_yolo == null)
+            {
+                Notify.sendError("YOLO model is not loaded");
+                return;
+            }
+
+            if (MainImage.Source is not BitmapImage image)
+            {
+                return;
+            }
+
+            var skImg = image.ToSKImage();
+
+            var labels = _yolo.RunObjectDetection(skImg).Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5);
+            
+            if(labels.Any())
+            {
+                if (clearAnnoations && _currentImage != null)
+                {
+                    // Clear and redraw all annotations
+                    AnnotationCanvas.Children.Clear();
+                    _currentImage.Annotations.Clear();
+                    foreach (var annotation in _currentImage.Annotations)
+                    {
+                        DrawAnnotation(annotation, image.PixelWidth, image.PixelHeight);
+                    }
+                    // Mark as dirty
+                    _isDirty = true;
+                }
+            }
+            //At least 40% confidence and bounding box size > 5 pixels
+            foreach (var label in labels)
+            {
+                GenerateAnnotationFromYolo(label, clearAnnoations);
+            }
+        }
+
+        private void GenerateAnnotationFromYolo(ObjectDetection label, bool clearAnnoations)
+        {
+            if (label == null || label.Label == null)
+            {
+                Notify.sendWarn("Invalid label data");
+                return;
+            }
+            if (!_classNames.ContainsKey(label.Label.Index))
+            {
+                Notify.sendError($"Class ID {label.Label.Index} not found in class names");
+                return;
+            }
+            if (_classNames[label.Label.Index]?.ToLower().Trim() != label.Label.Name?.ToLower().Trim())
+            {
+                Notify.sendError($"Class name mismatch for ID {label.Label.Index} | {_classNames[label.Label.Index]?.ToLower().Trim()} does not match {label.Label.Name?.ToLower().Trim()}");
+                return;
+            }
+
+            if (MainImage.Source is not BitmapImage image)
+            {
+                return;
+            }
+
+            var bb = label.BoundingBox;
+
+            double x = bb.MidX / image.Width;
+            double y = bb.MidY / image.Height;
+            double width = bb.Width / image.Width;
+            double height = bb.Height / image.Height;
+
+            // Create new YOLO label
+            YoloLabel newLabel = new YoloLabel
+            {
+                ClassId = label.Label.Index,
+                CenterX = (float)x,
+                CenterY = (float)y,
+                Width = (float)width,
+                Height = (float)height
+            };
+
+
+
+            // Add to the current image's annotations
+            if (_currentImage != null)
+            {
+                _currentImage.Annotations.Add(newLabel);
+
+                // Mark as dirty
+                _isDirty = true;
+
+                // Add class to current image if not already present
+                if (!_currentImage.ClassIds.Contains(label.Label.Index))
+                {
+                    _currentImage.ClassIds.Add(label.Label.Index);
+                }
+
+                // Redraw all annotations
+                DrawAnnotation(newLabel, image.PixelWidth, image.PixelHeight);
+                StatusText.Text = $"Added annotation for class {label.Label.Name}";
+            }
+        }
+
+
+        #endregion
+
     }
 }
