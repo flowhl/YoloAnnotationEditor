@@ -17,6 +17,12 @@
             <TabItem Header="YoloPreview">
                 <local:YoloPreview/>
             </TabItem>
+            <TabItem Header="PaddleOCR">
+                <local:PaddleOcrRunner/>
+            </TabItem>
+            <TabItem Header="OCR Annotation">
+                <local:OCRAnnotationControl/>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

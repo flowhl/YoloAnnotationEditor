@@ -1,0 +1,45 @@
+﻿<UserControl x:Class="YoloAnnotationEditor.PaddleOcrRunner"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:YoloAnnotationEditor"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal">
+            <ComboBox x:Name="cbModelVersion" SelectedIndex="2">
+                <ComboBoxItem Content="EnglishV3"/>
+                <ComboBoxItem Content="EnglishV4"/>
+                <ComboBoxItem Content="ChineseV5"/>
+                <ComboBoxItem Content="Custom"/>
+            </ComboBox>
+            <Button x:Name="BtnLoadModel" Click="BtnLoadModel_Click" Content="Load Model"/>
+            <TextBlock x:Name="txtModelStatus" Margin="5,0,0,0" VerticalAlignment="Center" Text="Model not loaded" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Grid.Row="1">
+            <Button x:Name="BtnSelectImage" Click="BtnSelectImage_Click" Content="Select Image"/>
+            <TextBox IsReadOnly="True" x:Name="TxtImagePath" Width="300" Margin="5" />
+            <Button x:Name="BtnDetect" Click="BtnDetect_Click" Content="Detect"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Grid.Row="2">
+            <TextBlock Text="Charset" />
+            <ComboBox x:Name="cbCharset" SelectedIndex="0">
+                <ComboBoxItem Content="All"/>
+                <ComboBoxItem Content="Limited Alphanumeric + Special"/>
+                <ComboBoxItem Content="Alphanumeric only"/>
+                <ComboBoxItem Content="Numeric + Special"/>
+                <ComboBoxItem Content="Numeric only"/>
+            </ComboBox>
+        </StackPanel>
+        <Image x:Name="imgDisplay" Grid.Row="3" HorizontalAlignment="Left"/>
+        <TextBox Grid.Row="4" x:Name="txtResult"/>
+    </Grid>
+</UserControl>

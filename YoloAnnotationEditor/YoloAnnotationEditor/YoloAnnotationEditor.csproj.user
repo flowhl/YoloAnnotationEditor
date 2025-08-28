@@ -5,6 +5,12 @@
     <Compile Update="DatasetEditor.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="OCRAnnotationControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="PaddleOcrRunner.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="YamlEditor.xaml.cs">
       <SubType>Code</SubType>
     </Compile>

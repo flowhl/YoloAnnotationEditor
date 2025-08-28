@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>True</UseWindowsForms>
-	  <FileVersion>1.0.5</FileVersion>
+	  <FileVersion>1.0.6</FileVersion>
 	  <ApplicationIcon>Images\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -24,6 +24,14 @@
     <PackageReference Include="OpenCvSharp4.runtime.win" Version="4.11.0.20250507" />
     <PackageReference Include="OpenCvSharp4.Windows" Version="4.11.0.20250507" />
     <PackageReference Include="OpenCvSharp4.WpfExtensions" Version="4.11.0.20250507" />
+    <PackageReference Include="Sdcb.PaddleInference" Version="3.0.1" />
+    <PackageReference Include="Sdcb.PaddleInference.runtime.win64.cu126_cudnn95_sm61" Version="3.1.0.54" />
+    <PackageReference Include="Sdcb.PaddleOCR" Version="3.0.1" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.Local" Version="3.0.1" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.LocalV3" Version="2.7.0.1" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.LocalV4" Version="2.7.0.1" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.LocalV5" Version="3.0.0" />
+    <PackageReference Include="Sdcb.PaddleOCR.Models.Shared" Version="2.7.0.1" />
     <PackageReference Include="Velopack" Version="0.0.1053" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <PackageReference Include="YoloDotNet" Version="2.3.0" />
