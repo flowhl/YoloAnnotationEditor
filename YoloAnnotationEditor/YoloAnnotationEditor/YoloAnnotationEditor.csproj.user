@@ -5,6 +5,9 @@
     <Compile Update="DatasetEditor.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="DatasetToolsControl.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="OCRAnnotationControl.xaml.cs">
       <SubType>Code</SubType>
     </Compile>

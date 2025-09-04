@@ -23,6 +23,9 @@
             <TabItem Header="OCR Annotation">
                 <local:OCRAnnotationControl/>
             </TabItem>
+            <TabItem Header="OCR Dataset Tools">
+                <local:DatasetToolsControl/>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

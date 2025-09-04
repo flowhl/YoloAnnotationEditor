@@ -101,7 +101,15 @@ namespace YoloAnnotationEditor
 
         private void PopulateDevices()
         {
+            try
+            {
             PopulateWebcamDevices();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error enumerating webcams: {ex.Message}", "Error",
+                               MessageBoxButton.OK, MessageBoxImage.Error);
+            }
             PopulateScreenDevices();
         }
 
@@ -109,22 +117,14 @@ namespace YoloAnnotationEditor
         {
             _webcamDevices.Clear();
 
-            // Enumerate webcams
-            int deviceCount = 10; // Try up to 10 devices
-            for (int i = 0; i < deviceCount; i++)
+            // Add placeholder entries instead of testing cameras at startup
+            for (int i = 0; i < 5; i++)
             {
-                try
+                _webcamDevices.Add(new WebcamDevice
                 {
-                    using (var capture = new VideoCapture(i))
-                    {
-                        if (capture.IsOpened())
-                        {
-                            string deviceName = $"Camera {i + 1}";
-                            _webcamDevices.Add(new WebcamDevice { Index = i, Name = deviceName });
-                        }
-                    }
-                }
-                catch { /* Device not available */ }
+                    Index = i,
+                    Name = $"Camera {i + 1} (click to test)"
+                });
             }
         }
 
