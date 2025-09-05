@@ -6,11 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Forms; // For FolderBrowserDialog and SaveFileDialog
+using System.Windows.Forms;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using YoloAnnotationEditor.Models;
+using System.Collections.ObjectModel;
+using Application = System.Windows.Application;
+using System.Windows.Threading;
 
 namespace YoloAnnotationEditor
 {
@@ -18,10 +21,13 @@ namespace YoloAnnotationEditor
     {
         private List<string> selectedDatasets = new List<string>();
         private Random random = new Random();
+        private ObservableCollection<CharacterFrequencyItem> characterFrequencyItems = new ObservableCollection<CharacterFrequencyItem>();
+        private HashSet<char> dictionaryChars = new HashSet<char>();
 
         public DatasetToolsControl()
         {
             InitializeComponent();
+            dgCharacterFrequency.ItemsSource = characterFrequencyItems;
         }
 
         #region Convert TRDG to PaddleOCR
@@ -61,9 +67,16 @@ namespace YoloAnnotationEditor
             btnConvert.IsEnabled = false;
             txtConvertLog.Clear();
 
+            string trdgDir = null;
+            string convertOutput = null;
+            double splitRatio = 0.8;
+            Application.Current.Dispatcher.Invoke(() => trdgDir = txtTrdgDir.Text);
+            Application.Current.Dispatcher.Invoke(() => convertOutput = txtConvertOutput.Text);
+            Application.Current.Dispatcher.Invoke(() => splitRatio = sliderSplitRatio.Value);
+
             try
             {
-                await Task.Run(() => ConvertTrdgToPaddleOcr(txtTrdgDir.Text, txtConvertOutput.Text, sliderSplitRatio.Value));
+                await Task.Run(() => ConvertTrdgToPaddleOcr(trdgDir, convertOutput, splitRatio));
                 LogMessage(txtConvertLog, "Conversion completed successfully!");
             }
             catch (Exception ex)
@@ -150,8 +163,8 @@ namespace YoloAnnotationEditor
             }
 
             // Write label files
-            File.WriteAllLines(Path.Combine(outputDir, "rec_gt_train.txt"), trainLabels, Encoding.UTF8);
-            File.WriteAllLines(Path.Combine(outputDir, "rec_gt_val.txt"), valLabels, Encoding.UTF8);
+            File.WriteAllLines(Path.Combine(outputDir, "rec_gt_train.txt"), trainLabels, new UTF8Encoding(false));
+            File.WriteAllLines(Path.Combine(outputDir, "rec_gt_val.txt"), valLabels, new UTF8Encoding(false));
 
             LogMessage(txtConvertLog, $"Label files created in {outputDir}");
         }
@@ -293,9 +306,11 @@ namespace YoloAnnotationEditor
 
             try
             {
-                var settings = new MergeSettings
+                var settings = new EnhancedMergeSettings
                 {
                     UseFixedHeight = rbFixedHeight.IsChecked == true,
+                    UseVariableHeight = rbVariableHeight.IsChecked == true,
+                    NoScaling = rbNoScale.IsChecked == true,
                     FixedHeight = int.Parse(txtFixedHeight.Text),
                     MinHeight = int.Parse(txtMinHeight.Text),
                     MaxHeight = int.Parse(txtMaxHeight.Text),
@@ -321,7 +336,7 @@ namespace YoloAnnotationEditor
             }
         }
 
-        private void MergeDatasets(List<string> datasets, string outputDir, MergeSettings settings)
+        private void MergeDatasets(List<string> datasets, string outputDir, EnhancedMergeSettings settings)
         {
             Directory.CreateDirectory(outputDir);
 
@@ -329,7 +344,14 @@ namespace YoloAnnotationEditor
             int imageCounter = 0;
 
             LogMessage(txtMergeLog, $"Merging {datasets.Count} datasets into: {outputDir}");
-            LogMessage(txtMergeLog, $"Scaling mode: {(settings.UseFixedHeight ? $"Fixed height {settings.FixedHeight}px" : $"Variable height {settings.MinHeight}-{settings.MaxHeight}px")}");
+
+            string scalingMode = "No scaling (original size)";
+            if (settings.UseFixedHeight)
+                scalingMode = $"Fixed height {settings.FixedHeight}px";
+            else if (settings.UseVariableHeight)
+                scalingMode = $"Variable height {settings.MinHeight}-{settings.MaxHeight}px";
+
+            LogMessage(txtMergeLog, $"Scaling mode: {scalingMode}");
             LogMessage(txtMergeLog, $"JPEG quality: {settings.Quality}");
 
             foreach (var datasetDir in datasets)
@@ -372,13 +394,21 @@ namespace YoloAnnotationEditor
                         var newFilename = $"{imageCounter}.jpg";
                         var outputPath = Path.Combine(outputDir, newFilename);
 
-                        // Determine target height
-                        int targetHeight = settings.UseFixedHeight
-                            ? settings.FixedHeight
-                            : random.Next(settings.MinHeight, settings.MaxHeight + 1);
+                        if (settings.NoScaling)
+                        {
+                            // Copy without scaling
+                            File.Copy(imagePath, outputPath, true);
+                        }
+                        else
+                        {
+                            // Determine target height
+                            int targetHeight = settings.UseFixedHeight
+                                ? settings.FixedHeight
+                                : random.Next(settings.MinHeight, settings.MaxHeight + 1);
 
-                        // Scale and save image
-                        ScaleImage(imagePath, outputPath, targetHeight, settings.Quality);
+                            // Scale and save image
+                            ScaleImage(imagePath, outputPath, targetHeight, settings.Quality);
+                        }
 
                         // Get label
                         var label = labelsDict.ContainsKey(originalFilename)
@@ -489,9 +519,14 @@ namespace YoloAnnotationEditor
             txtCharsetLog.Clear();
             txtCharsetPreview.Clear();
 
+            string datasetDir = null;
+            string outputFile = null;
+            Application.Current.Dispatcher.Invoke(() => datasetDir = txtCharsetDatasetDir.Text);
+            Application.Current.Dispatcher.Invoke(() => outputFile = txtCharsetOutput.Text);
+
             try
             {
-                var uniqueChars = await Task.Run(() => GenerateCharacterSet(txtCharsetDatasetDir.Text, txtCharsetOutput.Text));
+                var uniqueChars = await Task.Run(() => GenerateCharacterSet(datasetDir, outputFile));
 
                 var charString = string.Join("", uniqueChars.OrderBy(c => c));
                 txtCharsetPreview.Text = charString;
@@ -575,6 +610,57 @@ namespace YoloAnnotationEditor
             }
         }
 
+        private void BrowseDictionary_Click(object sender, RoutedEventArgs e)
+        {
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Filter = "Text files (*.txt)|*.txt|Dictionary files (*.dict)|*.dict|All files (*.*)|*.*";
+                dialog.Title = "Select Dictionary File";
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    txtDictionaryPath.Text = dialog.FileName;
+                    LoadDictionary(dialog.FileName);
+                }
+            }
+        }
+
+        private void LoadDictionary(string dictionaryPath)
+        {
+            try
+            {
+                dictionaryChars.Clear();
+                var lines = File.ReadAllLines(dictionaryPath, Encoding.UTF8);
+
+                foreach (var line in lines)
+                {
+                    if (!string.IsNullOrWhiteSpace(line))
+                    {
+                        // Each line should contain one character
+                        var trimmed = line.Trim();
+                        if (trimmed.Length == 1)
+                        {
+                            dictionaryChars.Add(trimmed[0]);
+                        }
+                        else if (trimmed.Length > 1)
+                        {
+                            // Handle special cases like escaped characters or multi-char representations
+                            foreach (char c in trimmed)
+                            {
+                                dictionaryChars.Add(c);
+                            }
+                        }
+                    }
+                }
+
+                System.Windows.MessageBox.Show($"Loaded dictionary with {dictionaryChars.Count} characters", "Dictionary Loaded", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Error loading dictionary: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                dictionaryChars.Clear();
+            }
+        }
+
         private async void AnalyzeDataset_Click(object sender, RoutedEventArgs e)
         {
             if (string.IsNullOrEmpty(txtAnalyzeDatasetDir.Text))
@@ -588,8 +674,8 @@ namespace YoloAnnotationEditor
 
             try
             {
-                string text = System.Windows.Application.Current.Dispatcher.Invoke(() => txtAnalyzeDatasetDir.Text);
-                var info = await Task.Run(() => AnalyzeDataset(text));
+                string datasetDir = txtAnalyzeDatasetDir.Text;
+                var info = await Task.Run(() => AnalyzeDataset(datasetDir));
                 DisplayAnalysisResults(info);
             }
             catch (Exception ex)
@@ -602,7 +688,7 @@ namespace YoloAnnotationEditor
             }
         }
 
-        private DatasetInfo AnalyzeDataset(string datasetDir)
+        private EnhancedDatasetInfo AnalyzeDataset(string datasetDir)
         {
             var labelsFile = Path.Combine(datasetDir, "labels.txt");
             if (!File.Exists(labelsFile))
@@ -610,10 +696,11 @@ namespace YoloAnnotationEditor
                 throw new Exception($"labels.txt not found in {datasetDir}");
             }
 
-            var info = new DatasetInfo();
+            var info = new EnhancedDatasetInfo();
             var labels = new List<string>();
             var filenames = new List<string>();
             var allChars = new List<char>();
+            var charFrequency = new Dictionary<char, int>();
 
             var lines = File.ReadAllLines(labelsFile, Encoding.UTF8);
 
@@ -633,7 +720,15 @@ namespace YoloAnnotationEditor
                     {
                         filenames.Add(filename);
                         labels.Add(label);
-                        allChars.AddRange(label);
+
+                        // Count character frequency
+                        foreach (var ch in label)
+                        {
+                            allChars.Add(ch);
+                            if (!charFrequency.ContainsKey(ch))
+                                charFrequency[ch] = 0;
+                            charFrequency[ch]++;
+                        }
                     }
                 }
             }
@@ -660,6 +755,10 @@ namespace YoloAnnotationEditor
                 ["Others"] = allChars.Count(c => !char.IsLetterOrDigit(c) && !char.IsPunctuation(c) && !char.IsSymbol(c) && !char.IsWhiteSpace(c))
             };
 
+            // Character frequency analysis
+            info.CharacterFrequency = charFrequency;
+            info.SampleLabels = labels.Take(10).ToList();
+
             return info;
         }
 
@@ -677,9 +776,13 @@ namespace YoloAnnotationEditor
             lblOthers.Content = "0";
             lstSampleLabels.Items.Clear();
             txtRecommendations.Clear();
+            characterFrequencyItems.Clear();
+            lstMissingFromDict.Items.Clear();
+            lstMissingFromDataset.Items.Clear();
+            gbDictionaryComparison.Visibility = Visibility.Collapsed;
         }
 
-        private void DisplayAnalysisResults(DatasetInfo info)
+        private void DisplayAnalysisResults(EnhancedDatasetInfo info)
         {
             // Update statistics labels
             lblTotalSamples.Content = info.TotalSamples.ToString();
@@ -695,22 +798,54 @@ namespace YoloAnnotationEditor
             lblSpaces.Content = info.CharBreakdown["Spaces"].ToString();
             lblOthers.Content = info.CharBreakdown["Others"].ToString();
 
-            // Show sample labels
-            var labelsFile = Path.Combine(txtAnalyzeDatasetDir.Text, "labels.txt");
-            var lines = File.ReadAllLines(labelsFile, Encoding.UTF8);
-            var sampleCount = Math.Min(10, lines.Length);
+            // Populate character frequency table
+            characterFrequencyItems.Clear();
+            int totalCharCount = info.CharacterFrequency.Values.Sum();
 
-            for (int i = 0; i < sampleCount; i++)
+            foreach (var kvp in info.CharacterFrequency.OrderByDescending(x => x.Value))
             {
-                var line = lines[i].Trim();
-                if (!string.IsNullOrEmpty(line))
+                var displayChar = kvp.Key == ' ' ? "SPACE" : kvp.Key.ToString();
+                var percentage = (kvp.Value * 100.0 / totalCharCount).ToString("F2") + "%";
+                var inDictionary = dictionaryChars.Count > 0 ? (dictionaryChars.Contains(kvp.Key) ? "Yes" : "No") : "N/A";
+
+                characterFrequencyItems.Add(new CharacterFrequencyItem
                 {
-                    var parts = line.Split(new[] { ' ' }, 2);
-                    if (parts.Length == 2)
-                    {
-                        lstSampleLabels.Items.Add($"{parts[0]}: '{parts[1]}'");
-                    }
+                    Character = displayChar,
+                    Count = kvp.Value,
+                    Percentage = percentage,
+                    InDictionary = inDictionary
+                });
+            }
+
+            // Dictionary comparison if dictionary is loaded
+            if (dictionaryChars.Count > 0)
+            {
+                gbDictionaryComparison.Visibility = Visibility.Visible;
+
+                var datasetChars = info.CharacterFrequency.Keys.ToHashSet();
+                var missingFromDict = datasetChars.Except(dictionaryChars).OrderBy(c => c).ToList();
+                var missingFromDataset = dictionaryChars.Except(datasetChars).OrderBy(c => c).ToList();
+
+                lstMissingFromDict.Items.Clear();
+                foreach (var ch in missingFromDict)
+                {
+                    var displayChar = ch == ' ' ? "SPACE" : ch.ToString();
+                    lstMissingFromDict.Items.Add($"'{displayChar}' (used {info.CharacterFrequency[ch]} times)");
                 }
+
+                lstMissingFromDataset.Items.Clear();
+                foreach (var ch in missingFromDataset)
+                {
+                    var displayChar = ch == ' ' ? "SPACE" : ch.ToString();
+                    lstMissingFromDataset.Items.Add($"'{displayChar}'");
+                }
+            }
+
+            // Show sample labels
+            lstSampleLabels.Items.Clear();
+            for (int i = 0; i < info.SampleLabels.Count; i++)
+            {
+                lstSampleLabels.Items.Add($"Sample {i + 1}: '{info.SampleLabels[i]}'");
             }
 
             // Generate recommendations
@@ -731,6 +866,22 @@ namespace YoloAnnotationEditor
             else if (info.UniqueChars < 20)
                 recommendations.Add("⚠️ Small character set. Consider adding more character diversity.");
 
+            if (dictionaryChars.Count > 0)
+            {
+                var datasetChars = info.CharacterFrequency.Keys.ToHashSet();
+                var missingFromDict = datasetChars.Except(dictionaryChars).Count();
+                var missingFromDataset = dictionaryChars.Except(datasetChars).Count();
+
+                if (missingFromDict > 0)
+                    recommendations.Add($"⚠️ {missingFromDict} characters in dataset are missing from dictionary.");
+
+                if (missingFromDataset > 0)
+                    recommendations.Add($"ℹ️ {missingFromDataset} characters in dictionary are missing from dataset.");
+
+                if (missingFromDict == 0 && missingFromDataset == 0)
+                    recommendations.Add("✅ Perfect match between dataset and dictionary characters.");
+            }
+
             txtRecommendations.Text = string.Join("\n", recommendations);
         }
 
@@ -748,5 +899,26 @@ namespace YoloAnnotationEditor
         }
 
         #endregion
+    }
+
+    // Enhanced data model classes
+    public class EnhancedMergeSettings : MergeSettings
+    {
+        public bool NoScaling { get; set; } = false;
+        public bool UseVariableHeight { get; set; } = false;
+    }
+
+    public class EnhancedDatasetInfo : DatasetInfo
+    {
+        public Dictionary<char, int> CharacterFrequency { get; set; } = new Dictionary<char, int>();
+        public List<string> SampleLabels { get; set; } = new List<string>();
+    }
+
+    public class CharacterFrequencyItem
+    {
+        public string Character { get; set; }
+        public int Count { get; set; }
+        public string Percentage { get; set; }
+        public string InDictionary { get; set; }
     }
 }

@@ -104,9 +104,9 @@
                         <ListBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Name="lstDatasets" Margin="0,5,0,0"/>
 
                         <!-- Merge Settings -->
-                        <GroupBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Header="Scaling Settings" Margin="0,10,0,0">
+                        <GroupBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Header="Merge Settings" Margin="0,10,0,0">
                             <StackPanel>
-                                <RadioButton Name="rbFixedHeight" Content="Fixed Height" IsChecked="True" Margin="0,5,0,0"/>
+                                <RadioButton Name="rbFixedHeight" Content="Fixed Height" IsChecked="False" Margin="0,5,0,0"/>
                                 <StackPanel Orientation="Horizontal" Margin="20,5,0,5">
                                     <Label Content="Height:"/>
                                     <TextBox Name="txtFixedHeight" Text="32" Width="60"/>
@@ -121,6 +121,8 @@
                                     <TextBox Name="txtMaxHeight" Text="20" Width="60"/>
                                     <Label Content="pixels"/>
                                 </StackPanel>
+
+                                <RadioButton Name="rbNoScale" Content="No Scaling (Keep Original Size)" IsChecked="True"/>
 
                                 <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
                                     <Label Content="JPEG Quality:"/>
@@ -197,13 +199,18 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
 
                         <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
                         <TextBox Grid.Row="0" Grid.Column="1" Name="txtAnalyzeDatasetDir" IsReadOnly="True"/>
                         <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseAnalyzeDataset" Content="Browse..." Click="BrowseAnalyzeDataset_Click"/>
 
-                        <Button Grid.Row="1" Grid.Column="1" Name="btnAnalyzeDataset" Content="Analyze Dataset" 
+                        <Label Grid.Row="1" Grid.Column="0" Content="Dictionary File (optional):"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Name="txtDictionaryPath" IsReadOnly="True"/>
+                        <Button Grid.Row="1" Grid.Column="2" Name="btnBrowseDictionary" Content="Browse..." Click="BrowseDictionary_Click"/>
+
+                        <Button Grid.Row="2" Grid.Column="1" Name="btnAnalyzeDataset" Content="Analyze Dataset" 
                                 Click="AnalyzeDataset_Click" HorizontalAlignment="Left" Margin="0,10,0,0"/>
                     </Grid>
 
@@ -263,6 +270,34 @@
                             </StackPanel>
                         </GroupBox>
                     </Grid>
+
+                    <GroupBox Header="Character Frequency" Margin="0,20,0,0">
+                        <DataGrid Name="dgCharacterFrequency" Height="250" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Character" Binding="{Binding Character}" Width="80"/>
+                                <DataGridTextColumn Header="Count" Binding="{Binding Count}" Width="80"/>
+                                <DataGridTextColumn Header="Percentage" Binding="{Binding Percentage}" Width="100"/>
+                                <DataGridTextColumn Header="In Dictionary" Binding="{Binding InDictionary}" Width="100"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+
+                    <GroupBox Header="Dictionary Comparison" Margin="0,20,0,0" Name="gbDictionaryComparison" Visibility="Collapsed">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <GroupBox Grid.Column="0" Header="Missing from Dictionary" Margin="0,0,5,0">
+                                <ListBox Name="lstMissingFromDict" Height="150"/>
+                            </GroupBox>
+
+                            <GroupBox Grid.Column="1" Header="Missing from Dataset" Margin="5,0,0,0">
+                                <ListBox Name="lstMissingFromDataset" Height="150"/>
+                            </GroupBox>
+                        </Grid>
+                    </GroupBox>
 
                     <GroupBox Header="Sample Labels" Margin="0,20,0,0">
                         <ListBox Name="lstSampleLabels" Height="150"/>
