@@ -1,19 +1,53 @@
 # YOLO Annotation Editor
-A comprehensive WPF application for **annotating images**, **editing YAML configurations**, and **previewing YOLO object detection** - the complete toolkit for managing YOLO format datasets. Designed for Yolo v11 Datasets.
+A comprehensive WPF application for **annotating images**, **editing YAML configurations**, **previewing YOLO object detection**, and **OCR dataset management** - the complete toolkit for managing YOLO format datasets and OCR training data. Designed for YOLO v11 Datasets with extensive OCR capabilities.
+
 ![image](https://github.com/user-attachments/assets/49975b66-5f5b-4190-b599-1f1444a097aa)
 ![image](https://github.com/user-attachments/assets/59f38549-7757-459a-8233-4f9182b9d47a)
 ![image](https://github.com/user-attachments/assets/a110f64c-c802-4ff5-a797-70220d3a056a)
 
-
 ## Features
+
+### Dataset Editor
 - **Interactive Annotation Editor**: Create, edit, and delete bounding box annotations with an intuitive interface
 - **Dataset Management**: Load and save YOLO format datasets with automatic handling of data files
 - **Edit State Tracking**: Visual indicators and state management for tracking which images have been edited
-- **Statistics & Visualization**: Analyze your dataset with built-in statistics charts and metrics
 - **Advanced Search**: Filter images by filename or class
-- **YAML Editor**: Intuitive interface for managing dataset YAML files and class definitions
-- **YOLO Preview**: Live object detection preview using ONNX models with webcam or screen capture support
-- **Auto Updates**: Automatic updates via GitHub releases
+- **Statistics & Visualization**: Analyze your dataset with built-in statistics charts and metrics
+- **Integrated YOLO Detection**: Generate annotations automatically using loaded ONNX models with support for both CUDA and CPU inference
+- **Keyboard Navigation**: Navigate through images and manage annotations with hotkeys
+
+### YAML Editor
+- **YAML Configuration Management**: Intuitive interface for managing dataset YAML files and class definitions
+- **Path Settings**: Configure base paths and train/validation/test directories
+- **Class Management**: Add, remove, and edit class definitions with search and sorting capabilities
+- **File Operations**: Create, open, save, and save-as functionality for YAML configurations
+
+### YOLO Preview
+- **Live Object Detection**: Real-time YOLO object detection preview using ONNX models
+- **Multiple Input Sources**: Support for webcam and screen capture
+- **Model Flexibility**: Load custom ONNX models with automatic fallback from CUDA to CPU
+- **Detection Control**: Toggle detection on/off and control capture settings
+
+### PaddleOCR
+- **Multiple OCR Models**: Support for English V3/V4, Chinese V5, and custom trained models
+- **Image Processing**: Load images and run OCR detection with confidence scoring
+- **Model Management**: Easy switching between different OCR model versions
+- **Results Display**: View OCR results with processing time and confidence metrics
+
+### OCR Annotation
+- **Text Annotation Interface**: Dedicated tool for creating and managing text labels for images
+- **Automatic OCR Detection**: Generate text annotations using integrated PaddleOCR
+- **Dataset Organization**: Automatic file conversion (PNG to JPG) and sequential renaming
+- **Progress Tracking**: Visual indicators for labeled vs unlabeled images with progress counters
+- **Navigation Controls**: Easy navigation through image datasets with Previous/Next functionality
+
+### OCR Dataset Tools
+- **TRDG to PaddleOCR Conversion**: Convert Text Recognition Data Generator datasets to PaddleOCR training format with configurable train/validation splits
+- **Dataset Merging**: Merge multiple datasets with flexible scaling options (fixed height, variable height, or no scaling) and quality control
+- **Character Set Generation**: Generate character dictionaries from existing datasets with frequency analysis
+- **Dataset Analysis**: Comprehensive analysis tools including character frequency, label length statistics, and dictionary comparison with AI-powered recommendations
+- **Auto-Discovery**: Automatically find and process datasets in directory structures
+- **Batch Processing**: Handle large datasets efficiently with progress tracking and logging
 
 ## Getting Started
 
@@ -49,29 +83,30 @@ The application uses Velopack for easy installation and automatic updates.
 ### YAML Editor
 1. Navigate to the YAML Editor tab
 2. Use the toolbar to create, open, save, or save as YAML files
-3. Configure dataset paths in the Path Settings section:
-   - Base Path: Root directory for your dataset
-   - Train Path: Path to training images
-   - Validation Path: Path to validation images
-   - Test Path: Path to test images
-4. Manage class definitions:
-   - Add or remove classes using the dedicated buttons
-   - Edit class names directly in the data grid
-   - Search/filter classes using the search box
-   - Sort classes by ID or name using the radio buttons
-5. Changes are tracked and can be saved to the YAML file
+3. Configure dataset paths in the Path Settings section
+4. Manage class definitions using the dedicated buttons and data grid
+5. Search/filter classes and sort by ID or name
 
 ### YOLO Preview
 1. Navigate to the YOLO Preview tab
-2. Configure the detection settings:
-   - Select an ONNX model file using the Browse button
-   - Choose source type: Webcam or Screen capture
-   - Select input device from the dropdown
-3. Control the detection:
-   - Start/Stop capture using the respective buttons
-   - Toggle YOLO detection on/off with the checkbox
-4. View real-time detection results directly in the application
-5. Detection is performed using the loaded ONNX model and displays bounding boxes with class labels
+2. Select an ONNX model file using the Browse button
+3. Choose source type: Webcam or Screen capture
+4. Select input device and start/stop capture
+5. Toggle YOLO detection on/off and view real-time results
+
+### OCR Annotation
+1. Navigate to the OCR Annotation tab
+2. Open a folder containing images
+3. Use "Detect with OCR" for automatic text recognition
+4. Navigate through images and edit text annotations
+5. Progress is automatically saved
+
+### OCR Dataset Tools
+1. Navigate to the OCR Dataset Tools tab
+2. **Convert TRDG to PaddleOCR**: Convert datasets with configurable train/val splits
+3. **Merge Datasets**: Combine multiple datasets with flexible scaling options
+4. **Generate Character Set**: Create character dictionaries from existing datasets
+5. **Analyze Dataset**: Get comprehensive statistics and recommendations for dataset improvement
 
 ## Development
 
@@ -93,6 +128,7 @@ The application uses Velopack for easy installation and automatic updates.
 - [Denxorz.ZoomControl](https://github.com/denxorz/ZoomControl) - for zoom functionality
 - [SkiaSharp](https://github.com/mono/SkiaSharp) - for high-performance 2D graphics
 - [YoloDotNet](https://github.com/NickSwardh/YoloDotNet) - for YOLO object detection with ONNX models
+- [Sdcb.PaddleOCR](https://github.com/sdcb/PaddleSharp) - for OCR functionality
 - [Velopack](https://github.com/velopack/velopack) - for automatic updates
 
 ## Contributing
@@ -113,9 +149,10 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 ## Acknowledgments
 - [YOLO](https://github.com/ultralytics/) - for the annotation format
 - [OpenCV](https://opencv.org/) - for image processing capabilities
+- [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) - for OCR functionality
 
 ---
 
 ## About
-YOLO Annotation Editor was created to simplify the process of creating and maintaining high-quality datasets for computer vision applications.
+YOLO Annotation Editor was created to simplify the process of creating and maintaining high-quality datasets for computer vision applications, now expanded with comprehensive OCR dataset management capabilities.
 For questions or support, please [open an issue](https://github.com/flowhl/YoloAnnotationEditor/issues) on our GitHub repository.
