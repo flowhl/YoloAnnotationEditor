@@ -1,8 +1,10 @@
-﻿using LiveChartsCore.SkiaSharpView.Painting;
+﻿using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView.Painting;
 using Microsoft.Win32;
+using OpenCvSharp;
 using SkiaSharp;
+using SkiaSharp.Views.WPF;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -16,6 +18,9 @@ using System.Windows.Shapes;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
 using YoloAnnotationEditor.Models;
+using YoloDotNet;
+using YoloDotNet.Enums;
+using YoloDotNet.Models;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
@@ -26,10 +31,6 @@ using Path = System.IO.Path;
 using Point = System.Windows.Point;
 using Rectangle = System.Windows.Shapes.Rectangle;
 using UserControl = System.Windows.Controls.UserControl;
-using YoloDotNet;
-using YoloDotNet.Models;
-using YoloDotNet.Enums;
-using SkiaSharp.Views.WPF;
 
 namespace YoloAnnotationEditor
 {
@@ -143,7 +144,7 @@ namespace YoloAnnotationEditor
                     // Get rectangle bounds in canvas coordinates
                     double rectLeft = Canvas.GetLeft(rect);
                     double rectTop = Canvas.GetTop(rect);
-                    Rect rectBounds = new Rect(rectLeft, rectTop, rect.Width, rect.Height);
+                    System.Windows.Rect rectBounds = new System.Windows.Rect(rectLeft, rectTop, rect.Width, rect.Height);
 
                     if (rectBounds.Contains(_startPoint))
                     {
@@ -258,7 +259,7 @@ namespace YoloAnnotationEditor
             if (CmbClassSelect.SelectedItem == null)
             {
                 StatusText.Text = "Select a class from the dropdown to create annotation";
-                // Don't show message box, just let user select from dropdown
+                MessageBox.Show("Select a class from the dropdown to create annotation");
             }
             else
             {
@@ -643,8 +644,26 @@ namespace YoloAnnotationEditor
                 }
 
                 // Redraw all annotations
-                DrawAnnotation(newLabel, image.PixelWidth, image.PixelHeight);
+                var newRect = DrawAnnotation(newLabel, image.PixelWidth, image.PixelHeight);
                 StatusText.Text = $"Added annotation for class {selectedClass.Name}";
+
+
+                if (newRect == null) return;
+
+                //select the new rectangle
+                // We found a hit! Select this annotation
+                _selectedAnnotation = newRect;
+
+                // Highlight it visually
+                HighlightSelectedAnnotation();
+
+                //Auto-focus and clear the search bar when selecting annotation
+                TxtClassSearch.Text = string.Empty;
+                TxtClassSearch.Focus();
+                CmbClassSelect.SelectedItem = null;
+
+                //reset search dropdown datasourse as the search is now empty
+                _filteredClasses.View.Refresh();
             }
         }
         #endregion
@@ -1004,7 +1023,7 @@ namespace YoloAnnotationEditor
         }
 
         // Modify the DrawAnnotation method to store the annotation reference in the rectangle's Tag:
-        private void DrawAnnotation(YoloLabel label, double imageWidth, double imageHeight)
+        private Rectangle DrawAnnotation(YoloLabel label, double imageWidth, double imageHeight)
         {
             try
             {
@@ -1063,11 +1082,14 @@ namespace YoloAnnotationEditor
                     // Add to canvas
                     AnnotationCanvas.Children.Add(textBlock);
                 }
+
+                return rect;
             }
             catch (Exception ex)
             {
                 Trace.WriteLine($"Error drawing annotation: {ex.Message}");
             }
+            return null;
         }
 
         private void EditStateManager_EditStateChanged(object sender, EventArgs e)
@@ -1660,8 +1682,6 @@ namespace YoloAnnotationEditor
                 Width = (float)width,
                 Height = (float)height
             };
-
-
 
             // Add to the current image's annotations
             if (_currentImage != null)
