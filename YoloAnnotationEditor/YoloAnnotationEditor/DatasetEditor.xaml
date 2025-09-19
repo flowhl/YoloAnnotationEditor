@@ -82,7 +82,8 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Grid.Column="0" Text="Search:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                            <TextBox Grid.Column="1" x:Name="TxtSearch" TextChanged="TxtSearch_TextChanged" Margin="0"/>
+                            <TextBox Grid.Column="1" x:Name="TxtSearch" TextChanged="TxtSearch_TextChanged" Margin="0"
+             ToolTip="Search images by filename or class name"/>
                         </Grid>
 
                         <!-- Thumbnail list with edit indicators -->
@@ -133,11 +134,25 @@
 
                         <!-- Editing tools bar -->
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
-                            <ToggleButton x:Name="BtnEditMode" Content="Edit Mode" Click="BtnEditMode_Click" Margin="0,0,10,0" Padding="5,2"/>
-                            <Button x:Name="BtnSaveAnnotations" Content="Save Changes" Click="BtnSaveAnnotations_Click" Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
-                            <Button x:Name="BtnDeleteSelected" Content="Delete Selected" Click="BtnDeleteSelected_Click" Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
-                            <Button x:Name="BtnDetectUsingYolo" Content="Detect with YOLO" Click="BtnDetectUsingYolo_Click"  Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
-                            <Button x:Name="BtnRedetectUsingYolo" Content="Redetect with YOLO" ToolTip="This will clear all previous labels for this image" Click="BtnRedetectUsingYolo_Click"  Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
+                            <ToggleButton x:Name="BtnEditMode" Content="Edit Mode" Click="BtnEditMode_Click" 
+                  Margin="0,0,10,0" Padding="5,2"
+                  ToolTip="Toggle Edit Mode (Ctrl+E)"/>
+                            <Button x:Name="BtnSaveAnnotations" Content="Save Changes" Click="BtnSaveAnnotations_Click" 
+            Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"
+            ToolTip="Save Changes (Ctrl+S)"/>
+                            <Button x:Name="BtnDeleteSelected" Content="Delete Selected" Click="BtnDeleteSelected_Click" 
+            Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"
+            ToolTip="Delete Selected Annotation (Delete Key)"/>
+                            <Button x:Name="BtnDetectUsingYolo" Content="Detect with YOLO" Click="BtnDetectUsingYolo_Click"  
+            Margin="0,0,10,0" Padding="5,2" IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"
+            ToolTip="Detect with YOLO (Ctrl+D)"/>
+                            <Button x:Name="BtnRedetectUsingYolo" Content="Redetect with YOLO" 
+            ToolTip="Redetect with YOLO - Clears all previous labels (Ctrl+Shift+D)" 
+            Click="BtnRedetectUsingYolo_Click" Margin="0,0,10,0" Padding="5,2" 
+            IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
+
+                            <TextBlock Text="Navigation: ←→↑↓ keys" VerticalAlignment="Center" 
+               Margin="20,0,0,0" FontStyle="Italic" Foreground="Gray"/>
                         </StackPanel>
 
                         <!-- Image container -->

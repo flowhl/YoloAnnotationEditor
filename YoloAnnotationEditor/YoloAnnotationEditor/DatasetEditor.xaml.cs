@@ -83,7 +83,10 @@ namespace YoloAnnotationEditor
 
             // Set reference to the counter
             _imageIndexCounter = ImageIndexCounter;
+
+            this.Loaded += (s, e) => this.Focus();
         }
+
 
         #region Dynamic Filters
 
@@ -153,15 +156,14 @@ namespace YoloAnnotationEditor
 
                         // Update the class dropdown selection
                         var label = (YoloLabel)rect.Tag;
-                        foreach (ClassItem item in CmbClassSelect.Items)
-                        {
-                            if (item.ClassId == label.ClassId)
-                            {
-                                TxtClassSearch.Text = null;
-                                CmbClassSelect.SelectedItem = item;
-                                break;
-                            }
-                        }
+
+                        //Auto-focus and clear the search bar when selecting annotation
+                        TxtClassSearch.Text = string.Empty;
+                        TxtClassSearch.Focus();
+                        CmbClassSelect.SelectedItem = null;
+
+                        //reset search dropdown datasourse as the search is now empty
+                        _filteredClasses.View.Refresh();
 
                         StatusText.Text = $"Selected annotation of class {_classNames[label.ClassId]}";
                         break;
@@ -248,10 +250,15 @@ namespace YoloAnnotationEditor
                 return;
             }
 
+            // NEW: Auto-focus and clear search when creating new annotation
+            TxtClassSearch.Text = string.Empty;
+            TxtClassSearch.Focus();
+
             // Keep the selection rectangle visible and prompt user to select a class
             if (CmbClassSelect.SelectedItem == null)
             {
-                MessageBox.Show("Please select a class for the annotation", "Class Required", MessageBoxButton.OK, MessageBoxImage.Information);
+                StatusText.Text = "Select a class from the dropdown to create annotation";
+                // Don't show message box, just let user select from dropdown
             }
             else
             {
@@ -271,11 +278,18 @@ namespace YoloAnnotationEditor
         private void RegisterHotkeys()
         {
             this.KeyUp += DatasetEditor_KeyUp;
+
+            // Make sure the control can receive focus for hotkeys
+            this.Focusable = true;
+            this.Focus();
         }
 
         private void DatasetEditor_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
         {
             bool isCtrlPressed = Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
+            bool isShiftPressed = Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+
+            // Existing hotkeys
             if (e.Key == Key.E && isCtrlPressed)
             {
                 BtnEditMode.IsChecked = !IsEditMode;
@@ -288,6 +302,57 @@ namespace YoloAnnotationEditor
             else if (e.Key == Key.S && isCtrlPressed)
             {
                 SaveAnnotations();
+            }
+            else if (e.Key == Key.Left || e.Key == Key.Up)
+            {
+                NavigateToPreviousImage();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Right || e.Key == Key.Down)
+            {
+                NavigateToNextImage();
+                e.Handled = true;
+            }
+            else if (e.Key == Key.D && isCtrlPressed && !isShiftPressed)
+            {
+                // Ctrl+D for Detect with YOLO
+                if (IsEditMode && _yolo != null)
+                {
+                    GenerateAnnotationsFromYolo(false);
+                }
+                e.Handled = true;
+            }
+            else if (e.Key == Key.D && isCtrlPressed && isShiftPressed)
+            {
+                // Ctrl+Shift+D for Redetect with YOLO (clears existing)
+                if (IsEditMode && _yolo != null)
+                {
+                    GenerateAnnotationsFromYolo(true);
+                }
+                e.Handled = true;
+            }
+        }
+        private void NavigateToPreviousImage()
+        {
+            if (LvThumbnails.Items.Count == 0) return;
+
+            int currentIndex = LvThumbnails.SelectedIndex;
+            if (currentIndex > 0)
+            {
+                LvThumbnails.SelectedIndex = currentIndex - 1;
+                LvThumbnails.ScrollIntoView(LvThumbnails.SelectedItem);
+            }
+        }
+
+        private void NavigateToNextImage()
+        {
+            if (LvThumbnails.Items.Count == 0) return;
+
+            int currentIndex = LvThumbnails.SelectedIndex;
+            if (currentIndex < LvThumbnails.Items.Count - 1)
+            {
+                LvThumbnails.SelectedIndex = currentIndex + 1;
+                LvThumbnails.ScrollIntoView(LvThumbnails.SelectedItem);
             }
         }
 
@@ -635,6 +700,36 @@ namespace YoloAnnotationEditor
         private void TxtClassSearch_TextChanged(object sender, TextChangedEventArgs e)
         {
             _filteredClasses.View.Refresh();
+
+            // If we only have one result, select it
+            if (_filteredClasses.View.Cast<ClassItem>().Count() == 1)
+            {
+                CmbClassSelect.SelectedItem = _filteredClasses.View.Cast<ClassItem>().First();
+            }
+            else if (_filteredClasses.View.Cast<ClassItem>().Count() == 0)
+            {
+                // No matches found, clear selection
+                CmbClassSelect.SelectedItem = null;
+            }
+            else if (string.IsNullOrEmpty(TxtClassSearch.Text))
+            {
+                // Search cleared, reset to first item if available
+                var firstItem = _filteredClasses.View.Cast<ClassItem>().FirstOrDefault();
+                CmbClassSelect.SelectedItem = firstItem;
+            }
+            // If multiple results, keep current selection if it's still valid
+            else if (CmbClassSelect.SelectedItem != null)
+            {
+                var currentSelection = CmbClassSelect.SelectedItem as ClassItem;
+                bool currentSelectionStillVisible = _filteredClasses.View.Cast<ClassItem>()
+                    .Any(item => item.ClassId == currentSelection?.ClassId);
+
+                if (!currentSelectionStillVisible)
+                {
+                    // Current selection is filtered out, clear it
+                    CmbClassSelect.SelectedItem = null;
+                }
+            }
         }
 
         private void TxtSearch_TextChanged(object sender, TextChangedEventArgs e)
@@ -799,6 +894,9 @@ namespace YoloAnnotationEditor
                 // Clear previous class items
                 _classItems.Clear();
 
+                // NEW: Auto-trigger YOLO if no annotations exist and YOLO model is loaded and we're in edit mode
+                bool shouldAutoDetect = ShouldAutoTriggerYolo(imageItem);
+
                 // Create a set of class IDs in this image
                 var classesInImage = new HashSet<int>();
 
@@ -823,8 +921,26 @@ namespace YoloAnnotationEditor
                     }
                 }
 
-                // Update status
-                StatusText.Text = $"Displaying {imageItem.FileName} ({imageItem.Annotations.Count} annotations)";
+                // Auto-trigger YOLO detection if conditions are met
+                if (shouldAutoDetect)
+                {
+                    try
+                    {
+                        StatusText.Text = "Auto-detecting with YOLO...";
+                        GenerateAnnotationsFromYolo(false);
+                        StatusText.Text = $"Auto-detected annotations for {imageItem.FileName}";
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusText.Text = $"Auto-detection failed: {ex.Message}";
+                        Trace.WriteLine($"Auto-detection error: {ex}");
+                    }
+                }
+                else
+                {
+                    // Update status normally
+                    StatusText.Text = $"Displaying {imageItem.FileName} ({imageItem.Annotations.Count} annotations)";
+                }
 
                 // Clear selection
                 _selectedAnnotation = null;
@@ -834,6 +950,14 @@ namespace YoloAnnotationEditor
                 MessageBox.Show($"Error displaying image: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 StatusText.Text = "Error displaying image";
             }
+        }
+
+        private bool ShouldAutoTriggerYolo(ImageItem imageItem)
+        {
+            return _yolo != null &&                    // YOLO model is loaded
+                   IsEditMode &&                       // We're in edit mode
+                   imageItem.Annotations.Count == 0 && // No existing annotations
+                   !imageItem.IsEdited;                // Image hasn't been manually edited before
         }
 
         private void RevertChanges()
@@ -1400,20 +1524,62 @@ namespace YoloAnnotationEditor
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"Failed to load YOLO model: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                    OnnxPathTextBox.Text = string.Empty;
+                    //try again but without cuda
+                    try
+                    {
+                        // Create new YOLO model
+                        _yolo = new Yolo(new YoloOptions()
+                        {
+                            OnnxModel = openFileDialog.FileName,
+                            ModelType = ModelType.ObjectDetection,
+                            Cuda = false,
+                            PrimeGpu = false
+                        });
+
+                        MessageBox.Show("YOLO model loaded successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    catch (Exception ex2)
+                    {
+                        MessageBox.Show($"Failed to load YOLO model: {ex2.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        OnnxPathTextBox.Text = string.Empty;
+                    }
+
                 }
             }
         }
 
         private void BtnDetectUsingYolo_Click(object sender, RoutedEventArgs e)
         {
+            if (_yolo == null)
+            {
+                StatusText.Text = "YOLO model not loaded";
+                MessageBox.Show("Please load a YOLO model first.", "YOLO Model Required",
+                               MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            StatusText.Text = "Detecting with YOLO...";
             GenerateAnnotationsFromYolo(false);
         }
 
         private void BtnRedetectUsingYolo_Click(object sender, RoutedEventArgs e)
         {
-            GenerateAnnotationsFromYolo(true);
+            if (_yolo == null)
+            {
+                StatusText.Text = "YOLO model not loaded";
+                MessageBox.Show("Please load a YOLO model first.", "YOLO Model Required",
+                               MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show("This will clear all existing annotations for this image. Continue?",
+                                        "Confirm Redetection", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                StatusText.Text = "Redetecting with YOLO (clearing existing)...";
+                GenerateAnnotationsFromYolo(true);
+            }
         }
 
         private void GenerateAnnotationsFromYolo(bool clearAnnoations)
@@ -1432,8 +1598,8 @@ namespace YoloAnnotationEditor
             var skImg = image.ToSKImage();
 
             var labels = _yolo.RunObjectDetection(skImg).Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5);
-            
-            if(labels.Any())
+
+            if (labels.Any())
             {
                 if (clearAnnoations && _currentImage != null)
                 {
