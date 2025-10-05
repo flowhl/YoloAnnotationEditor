@@ -323,7 +323,9 @@ namespace YoloAnnotationEditor
                     random = new Random(seed);
                 }
 
-                await Task.Run(() => MergeDatasets(selectedDatasets.ToList(), txtMergeOutput.Text, settings));
+                string outputDir = Dispatcher.Invoke(() => txtMergeOutput.Text);
+
+                await Task.Run(() => MergeDatasets(selectedDatasets.ToList(), outputDir, settings));
                 LogMessage(txtMergeLog, "Merge completed successfully!");
             }
             catch (Exception ex)
