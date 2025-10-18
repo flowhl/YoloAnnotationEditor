@@ -258,18 +258,15 @@ namespace YoloAnnotationEditor
             // Keep the selection rectangle visible and prompt user to select a class
             if (CmbClassSelect.SelectedItem == null)
             {
-                StatusText.Text = "Select a class from the dropdown to create annotation";
-                MessageBox.Show("Select a class from the dropdown to create annotation");
+                CmbClassSelect.SelectedIndex = 0;
             }
-            else
-            {
-                // We have a class selected, create the annotation
-                CreateAnnotationFromSelection();
+            // We have a class selected, create the annotation
+            CreateAnnotationFromSelection();
 
-                // Remove the selection rectangle
-                AnnotationCanvas.Children.Remove(SelectionRectangle);
-                SelectionRectangle = null;
-            }
+            // Remove the selection rectangle
+            AnnotationCanvas.Children.Remove(SelectionRectangle);
+            SelectionRectangle = null;
+
         }
 
         #endregion

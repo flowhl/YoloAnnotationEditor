@@ -59,7 +59,7 @@ namespace YoloAnnotationEditor
             else if (model == 3)
             {
                 var _det = DetectionModel.FromDirectory("D:\\AI\\OCR\\Models\\Pretrained\\PP-OCRv5_server_det_infer", ModelVersion.V5);
-                var _rec = RecognizationModel.FromDirectoryV5("D:\\AI\\OCR\\Training\\V1\\output\\real\\700img\\inference");
+                var _rec = RecognizationModel.FromDirectoryV5("D:\\AI\\OCR\\Training\\V1\\output\\synthetic\\150kimgv2\\Inference");
                 _model = new FullOcrModel(_det, _rec);
                 modelName = "Custom Local Model Loaded";
             }
