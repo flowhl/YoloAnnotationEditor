@@ -1,0 +1,232 @@
+<UserControl x:Class="YoloAnnotationEditor.YoloDatasetToolsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d" 
+             d:DesignHeight="600" d:DesignWidth="800">
+
+    <UserControl.Resources>
+        <Style TargetType="TextBox">
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Margin" Value="0,0,0,5"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="5,0"/>
+            <Setter Property="MinWidth" Value="80"/>
+        </Style>
+        <Style TargetType="CheckBox">
+            <Setter Property="Margin" Value="0,0,0,5"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="Label">
+            <Setter Property="Padding" Value="0,5"/>
+        </Style>
+    </UserControl.Resources>
+
+    <TabControl>
+        <!-- Merge Datasets Tab -->
+        <TabItem Header="Merge Datasets">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Merge Multiple YOLO Datasets" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="150"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Label Grid.Row="0" Grid.Column="0" Content="Output Directory:"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="txtMergeOutput" IsReadOnly="True"/>
+                        <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseMergeOutput" Content="Browse..." Click="BrowseMergeOutput_Click"/>
+
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Name="btnAddMergeDataset" Content="Add Dataset Folder" Click="AddMergeDataset_Click"/>
+                            <Button Name="btnRemoveMergeDataset" Content="Remove Selected" Click="RemoveMergeDataset_Click"/>
+                            <Button Name="btnClearMergeDatasets" Content="Clear All" Click="ClearMergeDatasets_Click"/>
+                        </StackPanel>
+
+                        <ListBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Name="lstMergeDatasets" Margin="0,5,0,0"/>
+
+                        <GroupBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Header="Merge Settings" Margin="0,10,0,0">
+                            <StackPanel>
+                                <CheckBox Name="chkMergeTrain" Content="Include train split" IsChecked="True" Margin="0,5,0,0"/>
+                                <CheckBox Name="chkMergeVal" Content="Include val split" IsChecked="True"/>
+                                <CheckBox Name="chkMergeTest" Content="Include test split" IsChecked="True"/>
+                                
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
+                                    <Label Content="Random Seed (optional):"/>
+                                    <TextBox Name="txtMergeSeed" Width="100"/>
+                                </StackPanel>
+
+                                <Button Name="btnMergeDatasets" Content="Merge Datasets" Click="MergeDatasets_Click" 
+                                        HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+
+                    <TextBox Name="txtMergeLog" Height="200" Margin="0,20,0,0" IsReadOnly="True" 
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <!-- Split Datasets Tab -->
+        <TabItem Header="Split Datasets">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Split YOLO Dataset" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Label Grid.Row="0" Grid.Column="0" Content="Input Dataset:"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="txtSplitInput" IsReadOnly="True"/>
+                        <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseSplitInput" Content="Browse..." Click="BrowseSplitInput_Click"/>
+
+                        <Label Grid.Row="1" Grid.Column="0" Content="Output Directory:"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Name="txtSplitOutput" IsReadOnly="True"/>
+                        <Button Grid.Row="1" Grid.Column="2" Name="btnBrowseSplitOutput" Content="Browse..." Click="BrowseSplitOutput_Click"/>
+
+                        <GroupBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Header="Split Options" Margin="0,10,0,0">
+                            <StackPanel>
+                                <RadioButton Name="rbSplitIntoParts" Content="Split into N equal parts" IsChecked="True" Margin="0,5,0,0"/>
+                                <StackPanel Orientation="Horizontal" Margin="20,5,0,5">
+                                    <Label Content="Number of parts:"/>
+                                    <TextBox Name="txtSplitParts" Text="3" Width="60"/>
+                                </StackPanel>
+
+                                <RadioButton Name="rbSplitByCount" Content="Split by image count"/>
+                                <StackPanel Orientation="Horizontal" Margin="20,5,0,5">
+                                    <Label Content="Images per part:"/>
+                                    <TextBox Name="txtSplitCount" Text="1000" Width="80"/>
+                                </StackPanel>
+
+                                <RadioButton Name="rbExtractSubset" Content="Extract random subset"/>
+                                <StackPanel Orientation="Horizontal" Margin="20,5,0,5">
+                                    <Label Content="Number of images:"/>
+                                    <TextBox Name="txtSubsetCount" Text="5000" Width="80"/>
+                                </StackPanel>
+
+                                <Separator Margin="0,10,0,10"/>
+
+                                <CheckBox Name="chkSplitTrain" Content="Include train split" IsChecked="True"/>
+                                <CheckBox Name="chkSplitVal" Content="Include val split" IsChecked="True"/>
+                                <CheckBox Name="chkSplitTest" Content="Include test split" IsChecked="True"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
+                                    <Label Content="Random Seed (optional):"/>
+                                    <TextBox Name="txtSplitSeed" Width="100"/>
+                                </StackPanel>
+
+                                <Button Name="btnSplitDataset" Content="Split Dataset" Click="SplitDataset_Click" 
+                                        HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+
+                    <TextBox Name="txtSplitLog" Height="200" Margin="0,20,0,0" IsReadOnly="True" 
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <!-- Filter Datasets Tab -->
+        <TabItem Header="Filter Datasets">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Filter YOLO Dataset" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Label Grid.Row="0" Grid.Column="0" Content="Input Dataset:"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="txtFilterInput" IsReadOnly="True"/>
+                        <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseFilterInput" Content="Browse..." Click="BrowseFilterInput_Click"/>
+
+                        <Label Grid.Row="1" Grid.Column="0" Content="Output Directory:"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Name="txtFilterOutput" IsReadOnly="True"/>
+                        <Button Grid.Row="1" Grid.Column="2" Name="btnBrowseFilterOutput" Content="Browse..." Click="BrowseFilterOutput_Click"/>
+
+                        <GroupBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Header="Filter Options" Margin="0,10,0,0">
+                            <StackPanel>
+                                <RadioButton Name="rbFilterByClass" Content="Filter by class" IsChecked="True" Margin="0,5,0,0"/>
+                                <StackPanel Margin="20,5,0,5">
+                                    <Button Name="btnLoadClasses" Content="Load Classes from Dataset" Click="LoadClasses_Click" 
+                                            HorizontalAlignment="Left" Margin="0,0,0,5"/>
+                                    <ListBox Name="lstFilterClasses" Height="120" SelectionMode="Multiple"/>
+                                    
+                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                        <RadioButton Name="rbClassContains" Content="Contains selected classes" IsChecked="True" GroupName="ClassFilter"/>
+                                        <RadioButton Name="rbClassNotContains" Content="Does not contain selected classes" Margin="20,0,0,0" GroupName="ClassFilter"/>
+                                    </StackPanel>
+                                    
+                                    <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
+                                        <RadioButton Name="rbClassAnd" Content="AND (all selected)" IsChecked="True" GroupName="ClassOperation"/>
+                                        <RadioButton Name="rbClassOr" Content="OR (any selected)" Margin="20,0,0,0" GroupName="ClassOperation"/>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <RadioButton Name="rbFilterFirstN" Content="First N images"/>
+                                <StackPanel Orientation="Horizontal" Margin="20,5,0,5">
+                                    <Label Content="Number of images:"/>
+                                    <TextBox Name="txtFilterFirstN" Text="1000" Width="80"/>
+                                </StackPanel>
+
+                                <RadioButton Name="rbFilterRandomN" Content="Random N images"/>
+                                <StackPanel Orientation="Horizontal" Margin="20,5,0,5">
+                                    <Label Content="Number of images:"/>
+                                    <TextBox Name="txtFilterRandomN" Text="1000" Width="80"/>
+                                </StackPanel>
+
+                                <Separator Margin="0,10,0,10"/>
+
+                                <CheckBox Name="chkFilterTrain" Content="Include train split" IsChecked="True"/>
+                                <CheckBox Name="chkFilterVal" Content="Include val split" IsChecked="True"/>
+                                <CheckBox Name="chkFilterTest" Content="Include test split" IsChecked="True"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,5">
+                                    <Label Content="Random Seed (optional):"/>
+                                    <TextBox Name="txtFilterSeed" Width="100"/>
+                                </StackPanel>
+
+                                <Button Name="btnFilterDataset" Content="Filter Dataset" Click="FilterDataset_Click" 
+                                        HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+
+                    <TextBox Name="txtFilterLog" Height="200" Margin="0,20,0,0" IsReadOnly="True" 
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+    </TabControl>
+</UserControl>

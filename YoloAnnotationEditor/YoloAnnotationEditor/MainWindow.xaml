@@ -26,6 +26,9 @@
             <TabItem Header="OCR Dataset Tools">
                 <local:DatasetToolsControl/>
             </TabItem>
+            <TabItem Header="YOLO Dataset Tools">
+                <local:YoloDatasetToolsControl/>
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>
