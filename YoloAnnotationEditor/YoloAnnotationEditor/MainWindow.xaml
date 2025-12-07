@@ -8,26 +8,37 @@
         Title="Dataset Editor" Height="450" Width="800">
     <Grid>
         <TabControl>
-            <TabItem Header="Dataset">
-                <local:DatasetEditor/>
+            <!-- YOLO Main Tab -->
+            <TabItem Header="YOLO">
+                <TabControl>
+                    <TabItem Header="Dataset">
+                        <local:DatasetEditor/>
+                    </TabItem>
+                    <TabItem Header="YamlFile">
+                        <local:YamlEditor/>
+                    </TabItem>
+                    <TabItem Header="Preview">
+                        <local:YoloPreview/>
+                    </TabItem>
+                    <TabItem Header="Dataset Tools">
+                        <local:YoloDatasetToolsControl/>
+                    </TabItem>
+                </TabControl>
             </TabItem>
-            <TabItem Header="YamlFile">
-                <local:YamlEditor/>
-            </TabItem>
-            <TabItem Header="YoloPreview">
-                <local:YoloPreview/>
-            </TabItem>
+            
+            <!-- PaddleOCR Main Tab -->
             <TabItem Header="PaddleOCR">
-                <local:PaddleOcrRunner/>
-            </TabItem>
-            <TabItem Header="OCR Annotation">
-                <local:OCRAnnotationControl/>
-            </TabItem>
-            <TabItem Header="OCR Dataset Tools">
-                <local:DatasetToolsControl/>
-            </TabItem>
-            <TabItem Header="YOLO Dataset Tools">
-                <local:YoloDatasetToolsControl/>
+                <TabControl>
+                    <TabItem Header="OCR Runner">
+                        <local:PaddleOcrRunner/>
+                    </TabItem>
+                    <TabItem Header="Annotation">
+                        <local:OCRAnnotationControl/>
+                    </TabItem>
+                    <TabItem Header="Dataset Tools">
+                        <local:DatasetToolsControl/>
+                    </TabItem>
+                </TabControl>
             </TabItem>
         </TabControl>
     </Grid>

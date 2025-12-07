@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <StackPanel Orientation="Horizontal">
@@ -24,12 +25,29 @@
             <Button x:Name="BtnLoadModel" Click="BtnLoadModel_Click" Content="Load Model"/>
             <TextBlock x:Name="txtModelStatus" Margin="5,0,0,0" VerticalAlignment="Center" Text="Model not loaded" />
         </StackPanel>
-        <StackPanel Orientation="Horizontal" Grid.Row="1">
+        
+        <!-- Custom Model Paths (visible when Custom is selected) -->
+        <GroupBox Grid.Row="1" Header="Custom Model Paths" Margin="0,5,0,5">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                    <Label Content="Detection Model:" Width="120"/>
+                    <TextBox x:Name="txtDetModelPath" Width="400" IsReadOnly="True" Margin="0,0,5,0"/>
+                    <Button x:Name="btnBrowseDetModel" Content="Browse..." Click="BtnBrowseDetModel_Click" Width="80"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,5">
+                    <Label Content="Recognition Model:" Width="120"/>
+                    <TextBox x:Name="txtRecModelPath" Width="400" IsReadOnly="True" Margin="0,0,5,0"/>
+                    <Button x:Name="btnBrowseRecModel" Content="Browse..." Click="BtnBrowseRecModel_Click" Width="80"/>
+                </StackPanel>
+            </StackPanel>
+        </GroupBox>
+        
+        <StackPanel Orientation="Horizontal" Grid.Row="2">
             <Button x:Name="BtnSelectImage" Click="BtnSelectImage_Click" Content="Select Image"/>
             <TextBox IsReadOnly="True" x:Name="TxtImagePath" Width="300" Margin="5" />
             <Button x:Name="BtnDetect" Click="BtnDetect_Click" Content="Detect"/>
         </StackPanel>
-        <StackPanel Orientation="Horizontal" Grid.Row="2">
+        <StackPanel Orientation="Horizontal" Grid.Row="3">
             <TextBlock Text="Charset" />
             <ComboBox x:Name="cbCharset" SelectedIndex="0">
                 <ComboBoxItem Content="All"/>
@@ -39,7 +57,7 @@
                 <ComboBoxItem Content="Numeric only"/>
             </ComboBox>
         </StackPanel>
-        <Image x:Name="imgDisplay" Grid.Row="3" HorizontalAlignment="Left"/>
-        <TextBox Grid.Row="4" x:Name="txtResult"/>
+        <Image x:Name="imgDisplay" Grid.Row="4" HorizontalAlignment="Left"/>
+        <TextBox Grid.Row="5" x:Name="txtResult"/>
     </Grid>
 </UserControl>

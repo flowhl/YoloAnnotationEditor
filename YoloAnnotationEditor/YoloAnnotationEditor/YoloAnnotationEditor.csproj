@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>True</UseWindowsForms>
-	  <FileVersion>1.0.9</FileVersion>
+	  <FileVersion>1.0.10</FileVersion>
 	  <ApplicationIcon>Images\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="CliWrap" Version="3.6.6" />
     <PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" Version="2.0.0-rc5.4" />
     <PackageReference Include="Notifications.Wpf" Version="0.1.1" />
     <PackageReference Include="NUnit" Version="4.3.2" />

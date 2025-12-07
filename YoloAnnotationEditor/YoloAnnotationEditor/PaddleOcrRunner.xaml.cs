@@ -6,6 +6,7 @@ using Sdcb.PaddleOCR.Models.Local;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,6 +32,8 @@ namespace YoloAnnotationEditor
         private PaddleOcrAll _ocr = null;
         private FullOcrModel _model = null;
         private string _imagePath = string.Empty;
+        private string _customDetModelPath = string.Empty;
+        private string _customRecModelPath = string.Empty;
 
         public PaddleOcrRunner()
         {
@@ -58,8 +61,30 @@ namespace YoloAnnotationEditor
             }
             else if (model == 3)
             {
-                var _det = DetectionModel.FromDirectory("D:\\AI\\OCR\\Models\\Pretrained\\PP-OCRv5_server_det_infer", ModelVersion.V5);
-                var _rec = RecognizationModel.FromDirectoryV5("D:\\AI\\OCR\\Training\\V1\\output\\synthetic\\150kimgv2\\Inference");
+                // Validate that custom paths are set
+                if (string.IsNullOrEmpty(_customDetModelPath) || string.IsNullOrEmpty(_customRecModelPath))
+                {
+                    MessageBox.Show("Please select both detection and recognition model paths before loading the custom model.", 
+                        "Missing Model Paths", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                if (!Directory.Exists(_customDetModelPath))
+                {
+                    MessageBox.Show($"Detection model directory not found: {_customDetModelPath}", 
+                        "Invalid Path", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                if (!Directory.Exists(_customRecModelPath))
+                {
+                    MessageBox.Show($"Recognition model directory not found: {_customRecModelPath}", 
+                        "Invalid Path", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var _det = DetectionModel.FromDirectory(_customDetModelPath, ModelVersion.V5);
+                var _rec = RecognizationModel.FromDirectoryV5(_customRecModelPath);
                 _model = new FullOcrModel(_det, _rec);
                 modelName = "Custom Local Model Loaded";
             }
@@ -144,6 +169,32 @@ namespace YoloAnnotationEditor
             {
                 _imagePath = openFileDialog.FileName;
                 TxtImagePath.Text = _imagePath;
+            }
+        }
+
+        private void BtnBrowseDetModel_Click(object sender, RoutedEventArgs e)
+        {
+            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+            {
+                dialog.Description = "Select Detection Model Directory";
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    _customDetModelPath = dialog.SelectedPath;
+                    txtDetModelPath.Text = _customDetModelPath;
+                }
+            }
+        }
+
+        private void BtnBrowseRecModel_Click(object sender, RoutedEventArgs e)
+        {
+            using (var dialog = new System.Windows.Forms.FolderBrowserDialog())
+            {
+                dialog.Description = "Select Recognition Model Directory";
+                if (dialog.ShowDialog() == System.Windows.Forms.DialogResult.OK)
+                {
+                    _customRecModelPath = dialog.SelectedPath;
+                    txtRecModelPath.Text = _customRecModelPath;
+                }
             }
         }
     }

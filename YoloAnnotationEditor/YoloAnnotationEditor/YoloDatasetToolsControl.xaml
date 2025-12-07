@@ -143,7 +143,34 @@
                         </GroupBox>
                     </Grid>
 
-                    <TextBox Name="txtSplitLog" Height="200" Margin="0,20,0,0" IsReadOnly="True" 
+                    <!-- Consolidate to Train -->
+                    <GroupBox Header="Consolidate to Train" Margin="0,20,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Name="txtConsolidateInput" IsReadOnly="True"/>
+                            <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseConsolidate" Content="Browse..." Click="BrowseConsolidate_Click"/>
+
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical" Margin="0,10,0,0">
+                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Foreground="Gray">
+                                    Moves all images and labels from val and test splits into the train split.
+                                </TextBlock>
+                                <Button Name="btnConsolidateToTrain" Content="Move All to Train" Click="ConsolidateToTrain_Click"
+                                        HorizontalAlignment="Left"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <TextBox Name="txtSplitLog" Height="200" Margin="0,20,0,0" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                 </StackPanel>
             </ScrollViewer>
@@ -217,13 +244,518 @@
                                     <TextBox Name="txtFilterSeed" Width="100"/>
                                 </StackPanel>
 
-                                <Button Name="btnFilterDataset" Content="Filter Dataset" Click="FilterDataset_Click" 
+                                <Button Name="btnFilterDataset" Content="Filter Dataset" Click="FilterDataset_Click"
+                                        HorizontalAlignment="Left" Margin="0,10,0,0"/>
+
+                                <StackPanel Margin="0,10,0,0">
+                                    <Label Content="Status:"/>
+                                    <TextBox Name="txtFilterStatus" IsReadOnly="True" Background="LightGray"/>
+                                    <ProgressBar Name="pbFilterProgress" Height="20" Margin="0,5,0,0" Minimum="0" Maximum="100"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+
+                    <TextBox Name="txtFilterLog" Height="200" Margin="0,20,0,0" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <!-- Analyze Dataset Tab -->
+        <TabItem Header="Analyze">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Analyze YOLO Dataset" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="txtAnalyzeInput" IsReadOnly="True"/>
+                        <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseAnalyzeInput" Content="Browse..." Click="BrowseAnalyzeInput_Click"/>
+
+                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,10,0,0">
+                            <Button Name="btnAnalyzeDataset" Content="Analyze Dataset" Click="AnalyzeDataset_Click"/>
+                            <Button Name="btnExportCSV" Content="Export to CSV" Click="ExportCSV_Click" IsEnabled="False"/>
+                            <Button Name="btnGenerateReport" Content="Generate HTML Report" Click="GenerateReport_Click" IsEnabled="False"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Statistics Panel -->
+                    <GroupBox Header="Dataset Statistics" Margin="0,20,0,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1*"/>
+                                <ColumnDefinition Width="1*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0" Margin="10">
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Total Images:" FontWeight="Bold" Width="150"/>
+                                    <Label Name="lblTotalImages" Content="0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Total Annotations:" FontWeight="Bold" Width="150"/>
+                                    <Label Name="lblTotalAnnotations" Content="0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Train Images:" FontWeight="Bold" Width="150"/>
+                                    <Label Name="lblTrainImages" Content="0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Val Images:" FontWeight="Bold" Width="150"/>
+                                    <Label Name="lblValImages" Content="0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Test Images:" FontWeight="Bold" Width="150"/>
+                                    <Label Name="lblTestImages" Content="0"/>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Margin="10">
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Avg Annotations/Image:" FontWeight="Bold" Width="180"/>
+                                    <Label Name="lblAvgAnnotations" Content="0.0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Min Annotations/Image:" FontWeight="Bold" Width="180"/>
+                                    <Label Name="lblMinAnnotations" Content="0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Max Annotations/Image:" FontWeight="Bold" Width="180"/>
+                                    <Label Name="lblMaxAnnotations" Content="0"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Label Content="Number of Classes:" FontWeight="Bold" Width="180"/>
+                                    <Label Name="lblNumClasses" Content="0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- Class Distribution Table -->
+                    <GroupBox Header="Class Distribution" Margin="0,20,0,0">
+                        <DataGrid Name="dgClassDistribution" Height="300" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Class ID" Binding="{Binding ClassId}" Width="80"/>
+                                <DataGridTextColumn Header="Class Name" Binding="{Binding ClassName}" Width="*"/>
+                                <DataGridTextColumn Header="Instances" Binding="{Binding InstanceCount}" Width="100"/>
+                                <DataGridTextColumn Header="Images" Binding="{Binding ImageCount}" Width="100"/>
+                                <DataGridTextColumn Header="Percentage" Binding="{Binding Percentage, StringFormat={}{0:F2}%}" Width="100"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+
+                    <!-- Progress Tracking -->
+                    <GroupBox Header="Analysis Progress" Margin="0,20,0,0">
+                        <StackPanel>
+                            <TextBlock Name="txtAnalyzeStatus" Text="Ready to analyze" Margin="5"/>
+                            <ProgressBar Name="pbAnalyzeProgress" Height="25" Margin="5" Minimum="0" Maximum="100"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <TextBox Name="txtAnalyzeLog" Height="150" Margin="0,20,0,0" IsReadOnly="True" 
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <!-- Balance Dataset Tab -->
+        <TabItem Header="Balance">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Balance YOLO Dataset" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Label Grid.Row="0" Grid.Column="0" Content="Primary Dataset:"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="txtBalancePrimary" IsReadOnly="True"/>
+                        <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseBalancePrimary" Content="Browse..." Click="BrowseBalancePrimary_Click"/>
+
+                        <Label Grid.Row="1" Grid.Column="0" Content="Secondary Dataset (optional):"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Name="txtBalanceSecondary" IsReadOnly="True"/>
+                        <Button Grid.Row="1" Grid.Column="2" Name="btnBrowseBalanceSecondary" Content="Browse..." Click="BrowseBalanceSecondary_Click"/>
+
+                        <Label Grid.Row="2" Grid.Column="0" Content="Output Directory:"/>
+                        <TextBox Grid.Row="2" Grid.Column="1" Name="txtBalanceOutput" IsReadOnly="True"/>
+                        <Button Grid.Row="2" Grid.Column="2" Name="btnBrowseBalanceOutput" Content="Browse..." Click="BrowseBalanceOutput_Click"/>
+
+                        <GroupBox Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Header="Balance Settings" Margin="0,10,0,0">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" Margin="0,5,0,5">
+                                    <Label Content="Target instances per class:"/>
+                                    <TextBox Name="txtTargetInstances" Text="1000" Width="80"/>
+                                </StackPanel>
+
+                                <Button Name="btnBalanceDataset" Content="Balance Dataset" Click="BalanceDataset_Click" 
                                         HorizontalAlignment="Left" Margin="0,10,0,0"/>
                             </StackPanel>
                         </GroupBox>
                     </Grid>
 
-                    <TextBox Name="txtFilterLog" Height="200" Margin="0,20,0,0" IsReadOnly="True" 
+                    <TextBox Name="txtBalanceLog" Height="200" Margin="0,20,0,0" IsReadOnly="True" 
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <!-- Validate Dataset Tab -->
+        <TabItem Header="Validate">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Validate YOLO Dataset" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="txtValidateInput" IsReadOnly="True"/>
+                        <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseValidateInput" Content="Browse..." Click="BrowseValidateInput_Click"/>
+
+                        <Label Grid.Row="1" Grid.Column="0" Content="Output Directory:"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Name="txtValidateOutput" IsReadOnly="True"/>
+                        <Button Grid.Row="1" Grid.Column="2" Name="btnBrowseValidateOutput" Content="Browse..." Click="BrowseValidateOutput_Click"/>
+
+                        <GroupBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Header="Validation Rules" Margin="0,10,0,0">
+                            <StackPanel>
+                                <CheckBox Name="chkValidateMinROI" Content="Check minimum ROI count" IsChecked="True"/>
+                                <StackPanel Orientation="Horizontal" Margin="20,0,0,5">
+                                    <Label Content="Minimum ROIs:"/>
+                                    <TextBox Name="txtMinROI" Text="1" Width="60"/>
+                                </StackPanel>
+
+                                <CheckBox Name="chkValidateDuplicates" Content="Check for duplicate classes in same image" IsChecked="True"/>
+                                <CheckBox Name="chkValidateCoordinates" Content="Check for invalid coordinates" IsChecked="True"/>
+                                <CheckBox Name="chkValidateMissingFiles" Content="Check for missing labels/images" IsChecked="True"/>
+                                <CheckBox Name="chkValidateEmptyLabels" Content="Check for empty label files" IsChecked="True"/>
+
+                                <Separator Margin="0,10,0,10"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <Button Name="btnValidateDataset" Content="Validate Dataset" Click="ValidateDataset_Click"/>
+                                    <Button Name="btnExportGoodDataset" Content="Export Good Images" Click="ExportGoodDataset_Click" IsEnabled="False" Margin="5,0,0,0"/>
+                                    <Button Name="btnExportBadDataset" Content="Export Bad Images" Click="ExportBadDataset_Click" IsEnabled="False" Margin="5,0,0,0"/>
+                                    <Button Name="btnExportValidationReport" Content="Export Report" Click="ExportValidationReport_Click" IsEnabled="False" Margin="5,0,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+
+                    <!-- Validation Statistics Chart -->
+                    <GroupBox Header="Validation Statistics" Margin="0,20,0,0">
+                        <Grid Height="200">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- Fine -->
+                            <StackPanel Grid.Column="0" Margin="5">
+                                <TextBlock Text="Fine" HorizontalAlignment="Center" FontWeight="Bold" Foreground="Green"/>
+                                <Border BorderBrush="Green" BorderThickness="2" Margin="0,5,0,0">
+                                    <Grid>
+                                        <Rectangle Name="barFine" Fill="LightGreen" VerticalAlignment="Bottom" Height="0"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Name="lblFineCount" Text="0" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                            </StackPanel>
+                            
+                            <!-- Minimum ROI -->
+                            <StackPanel Grid.Column="1" Margin="5">
+                                <TextBlock Text="Min ROI" HorizontalAlignment="Center" FontWeight="Bold" Foreground="Orange"/>
+                                <Border BorderBrush="Orange" BorderThickness="2" Margin="0,5,0,0">
+                                    <Grid>
+                                        <Rectangle Name="barMinROI" Fill="LightYellow" VerticalAlignment="Bottom" Height="0"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Name="lblMinROICount" Text="0" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                            </StackPanel>
+                            
+                            <!-- Duplicates -->
+                            <StackPanel Grid.Column="2" Margin="5">
+                                <TextBlock Text="Duplicates" HorizontalAlignment="Center" FontWeight="Bold" Foreground="DarkOrange"/>
+                                <Border BorderBrush="DarkOrange" BorderThickness="2" Margin="0,5,0,0">
+                                    <Grid>
+                                        <Rectangle Name="barDuplicates" Fill="PeachPuff" VerticalAlignment="Bottom" Height="0"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Name="lblDuplicatesCount" Text="0" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                            </StackPanel>
+                            
+                            <!-- Invalid Coordinates -->
+                            <StackPanel Grid.Column="3" Margin="5">
+                                <TextBlock Text="Invalid Coords" HorizontalAlignment="Center" FontWeight="Bold" Foreground="Red"/>
+                                <Border BorderBrush="Red" BorderThickness="2" Margin="0,5,0,0">
+                                    <Grid>
+                                        <Rectangle Name="barInvalidCoords" Fill="LightCoral" VerticalAlignment="Bottom" Height="0"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Name="lblInvalidCoordsCount" Text="0" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                            </StackPanel>
+                            
+                            <!-- Missing Files -->
+                            <StackPanel Grid.Column="4" Margin="5">
+                                <TextBlock Text="Missing Files" HorizontalAlignment="Center" FontWeight="Bold" Foreground="Purple"/>
+                                <Border BorderBrush="Purple" BorderThickness="2" Margin="0,5,0,0">
+                                    <Grid>
+                                        <Rectangle Name="barMissingFiles" Fill="Plum" VerticalAlignment="Bottom" Height="0"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Name="lblMissingFilesCount" Text="0" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                            </StackPanel>
+                            
+                            <!-- Empty Labels -->
+                            <StackPanel Grid.Column="5" Margin="5">
+                                <TextBlock Text="Empty Labels" HorizontalAlignment="Center" FontWeight="Bold" Foreground="Gray"/>
+                                <Border BorderBrush="Gray" BorderThickness="2" Margin="0,5,0,0">
+                                    <Grid>
+                                        <Rectangle Name="barEmptyLabels" Fill="LightGray" VerticalAlignment="Bottom" Height="0"/>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Name="lblEmptyLabelsCount" Text="0" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- Validation Results -->
+                    <GroupBox Header="Validation Results" Margin="0,20,0,0">
+                        <DataGrid Name="dgValidationResults" Height="250" AutoGenerateColumns="False" IsReadOnly="True">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Image" Binding="{Binding ImagePath}" Width="*"/>
+                                <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="150"/>
+                                <DataGridTextColumn Header="Issues" Binding="{Binding Issues.Count}" Width="80"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </GroupBox>
+
+                    <!-- Progress Tracking -->
+                    <GroupBox Header="Validation Progress" Margin="0,20,0,0">
+                        <StackPanel>
+                            <TextBlock Name="txtValidateStatus" Text="Ready to validate" Margin="5"/>
+                            <ProgressBar Name="pbValidateProgress" Height="25" Margin="5" Minimum="0" Maximum="100"/>
+                        </StackPanel>
+                    </GroupBox>
+
+                    <TextBox Name="txtValidateLog" Height="150" Margin="0,20,0,0" IsReadOnly="True" 
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
+        <!-- Utilities Tab -->
+        <TabItem Header="Utilities">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Dataset Utilities" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+
+                    <!-- Label-Image Matcher -->
+                    <GroupBox Header="Label-Image Matcher" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Mode:"/>
+                            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                                <RadioButton Name="rbMatchLabelsToImages" Content="Match Labels → Images" IsChecked="True" GroupName="MatchMode"/>
+                                <RadioButton Name="rbMatchImagesToLabels" Content="Match Images → Labels" Margin="20,0,0,0" GroupName="MatchMode"/>
+                            </StackPanel>
+
+                            <Label Grid.Row="1" Grid.Column="0" Content="Source Directory:"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Name="txtMatchSource" IsReadOnly="True"/>
+                            <Button Grid.Row="1" Grid.Column="2" Name="btnBrowseMatchSource" Content="Browse..." Click="BrowseMatchSource_Click"/>
+
+                            <Label Grid.Row="2" Grid.Column="0" Content="Target Directory:"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Name="txtMatchTarget" IsReadOnly="True"/>
+                            <Button Grid.Row="2" Grid.Column="2" Name="btnBrowseMatchTarget" Content="Browse..." Click="BrowseMatchTarget_Click"/>
+
+                            <Button Grid.Row="3" Grid.Column="1" Name="btnRunMatcher" Content="Run Matcher" Click="RunMatcher_Click" 
+                                    HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- Find Missing Files -->
+                    <GroupBox Header="Find Missing Files" Margin="0,10,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Name="txtMissingFilesInput" IsReadOnly="True"/>
+                            <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseMissingFiles" Content="Browse..." Click="BrowseMissingFiles_Click"/>
+
+                            <Button Grid.Row="1" Grid.Column="1" Name="btnFindMissingFiles" Content="Find Missing Files" Click="FindMissingFiles_Click" 
+                                    HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- Cleanup Tool -->
+                    <GroupBox Header="Cleanup Tool" Margin="0,10,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Name="txtCleanupInput" IsReadOnly="True"/>
+                            <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseCleanup" Content="Browse..." Click="BrowseCleanup_Click"/>
+
+                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,10,0,0">
+                                <CheckBox Name="chkRemoveImagesWithoutLabels" Content="Remove images without labels"/>
+                                <CheckBox Name="chkRemoveLabelsWithoutImages" Content="Remove labels without images"/>
+                                <CheckBox Name="chkRemoveEmptyLabels" Content="Remove empty label files"/>
+                                <Button Name="btnRunCleanup" Content="Run Cleanup" Click="RunCleanup_Click" 
+                                        HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- Class Remapping -->
+                    <GroupBox Header="Class Remapping" Margin="0,10,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Name="txtRemapInput" IsReadOnly="True"/>
+                            <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseRemap" Content="Browse..." Click="BrowseRemap_Click"/>
+
+                            <Label Grid.Row="1" Grid.Column="0" Content="Remapping:"/>
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                                <Label Content="Old Class ID:"/>
+                                <TextBox Name="txtOldClassId" Width="60"/>
+                                <Label Content="→ New Class ID:"/>
+                                <TextBox Name="txtNewClassId" Width="60"/>
+                                <Button Name="btnAddRemapRule" Content="Add Rule" Click="AddRemapRule_Click"/>
+                            </StackPanel>
+
+                            <ListBox Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Name="lstRemapRules" Height="80" Margin="0,5,0,0"/>
+
+                            <Button Grid.Row="2" Grid.Column="1" Name="btnApplyRemap" Content="Apply Remapping" Click="ApplyRemap_Click" 
+                                    HorizontalAlignment="Left" Margin="0,10,0,0" VerticalAlignment="Bottom"/>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- Image Resizing -->
+                    <GroupBox Header="Image Resizing" Margin="0,10,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Name="txtResizeInput" IsReadOnly="True"/>
+                            <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseResize" Content="Browse..." Click="BrowseResize_Click"/>
+
+                            <Label Grid.Row="1" Grid.Column="0" Content="Output Directory:"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Name="txtResizeOutput" IsReadOnly="True"/>
+                            <Button Grid.Row="1" Grid.Column="2" Name="btnBrowseResizeOutput" Content="Browse..." Click="BrowseResizeOutput_Click"/>
+
+                            <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,10,0,0">
+                                <Label Content="Target Size:"/>
+                                <TextBox Name="txtResizeWidth" Text="640" Width="60"/>
+                                <Label Content="x"/>
+                                <TextBox Name="txtResizeHeight" Text="640" Width="60"/>
+                                <CheckBox Name="chkMaintainAspect" Content="Maintain aspect ratio" IsChecked="True" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                <Button Name="btnResizeImages" Content="Resize Images" Click="ResizeImages_Click" Margin="10,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <!-- Dataset Deduplication -->
+                    <GroupBox Header="Dataset Deduplication" Margin="0,10,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Name="txtDedupeInput" IsReadOnly="True"/>
+                            <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseDedupe" Content="Browse..." Click="BrowseDedupe_Click"/>
+
+                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,10,0,0">
+                                <RadioButton Name="rbHashBased" Content="Hash-based (exact duplicates)" IsChecked="True" GroupName="DedupeMethod"/>
+                                <Button Name="btnRunDedupe" Content="Find Duplicates" Click="RunDedupe_Click" Margin="20,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
+                    <TextBox Name="txtUtilitiesLog" Height="150" Margin="0,20,0,0" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                 </StackPanel>
             </ScrollViewer>
