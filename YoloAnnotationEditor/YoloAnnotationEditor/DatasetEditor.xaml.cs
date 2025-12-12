@@ -1245,6 +1245,10 @@ namespace YoloAnnotationEditor
             { valImagesPath, valLabelsPath }
         };
 
+                // Check decimal separator in first 5 label files
+                bool shouldCheckSeparator = true;
+                bool askedUser = false;
+
                 // Process each directory
                 foreach (var dirPair in imageDirectories)
                 {
@@ -1254,6 +1258,40 @@ namespace YoloAnnotationEditor
                     if (!Directory.Exists(imagesDir) || !Directory.Exists(labelsDir))
                     {
                         continue;
+                    }
+
+                    // Check decimal separator in first 5 label files (only once)
+                    if (shouldCheckSeparator && !askedUser)
+                    {
+                        var labelFiles = Directory.GetFiles(labelsDir, "*.txt")
+                            .Take(5)
+                            .ToList();
+
+                        if (labelFiles.Count > 0)
+                        {
+                            bool hasCommaDecimal = CheckForCommaDecimalSeparator(labelFiles);
+                            if (hasCommaDecimal)
+                            {
+                                var result = await Dispatcher.InvokeAsync(() =>
+                                    MessageBox.Show(
+                                        "The dataset contains label files with comma (,) as decimal separator.\n" +
+                                        "YOLO format requires dot (.) as decimal separator.\n\n" +
+                                        "Would you like to convert all label files to use dot (.) as decimal separator?",
+                                        "Decimal Separator Detected",
+                                        MessageBoxButton.YesNo,
+                                        MessageBoxImage.Question));
+
+                                if (result == MessageBoxResult.Yes)
+                                {
+                                    await Task.Run(() => ConvertDecimalSeparatorInDataset(_datasetBasePath, ',', '.'));
+                                    await Dispatcher.InvokeAsync(() =>
+                                        MessageBox.Show("All label files have been converted to use dot (.) as decimal separator.",
+                                            "Conversion Complete", MessageBoxButton.OK, MessageBoxImage.Information));
+                                }
+                            }
+                            askedUser = true;
+                        }
+                        shouldCheckSeparator = false;
                     }
 
                     // Get image files and sort them alphabetically
@@ -1357,11 +1395,23 @@ namespace YoloAnnotationEditor
                 if (parts.Length < 5)
                     return null;
 
+                //check if the float values contain comma instead of dot
+                for (int i = 1; i < parts.Length; i++)
+                {
+                    if (parts[i].Contains(",") && !parts[i].Contains("."))
+                    {
+                        parts[i] = parts[i].Replace(",", ".");
+                    }
+                }
+
+                //formatprovider will always use dot as decimal separator
+                var formatProvider = System.Globalization.CultureInfo.InvariantCulture;
+
                 if (int.TryParse(parts[0], out int classId) &&
-                    float.TryParse(parts[1], out float centerX) &&
-                    float.TryParse(parts[2], out float centerY) &&
-                    float.TryParse(parts[3], out float width) &&
-                    float.TryParse(parts[4], out float height))
+                    float.TryParse(parts[1], formatProvider, out float centerX) &&
+                    float.TryParse(parts[2], formatProvider, out float centerY) &&
+                    float.TryParse(parts[3], formatProvider, out float width) &&
+                    float.TryParse(parts[4], formatProvider, out float height))
                 {
                     return new YoloLabel
                     {
@@ -1700,6 +1750,124 @@ namespace YoloAnnotationEditor
             }
         }
 
+
+        #endregion
+
+        #region Decimal Separator Helper Methods
+
+        /// <summary>
+        /// Checks if the given label files use comma as decimal separator
+        /// </summary>
+        private bool CheckForCommaDecimalSeparator(List<string> labelFiles)
+        {
+            foreach (var labelFile in labelFiles)
+            {
+                try
+                {
+                    var lines = File.ReadAllLines(labelFile);
+                    foreach (var line in lines)
+                    {
+                        if (string.IsNullOrWhiteSpace(line))
+                            continue;
+
+                        var parts = line.Trim().Split(' ');
+                        if (parts.Length < 5)
+                            continue;
+
+                        // Check if any of the numeric parts contain comma
+                        for (int i = 1; i < Math.Min(5, parts.Length); i++)
+                        {
+                            if (parts[i].Contains(",") && !parts[i].Contains("."))
+                            {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Skip files that can't be read
+                    continue;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Converts decimal separator in all label files in the dataset
+        /// </summary>
+        private void ConvertDecimalSeparatorInDataset(string datasetBasePath, char fromSeparator, char toSeparator)
+        {
+            var labelDirectories = new List<string>
+            {
+                Path.Combine(datasetBasePath, "labels", "train"),
+                Path.Combine(datasetBasePath, "labels", "val"),
+                Path.Combine(datasetBasePath, "labels", "test")
+            };
+
+            foreach (var labelsDir in labelDirectories)
+            {
+                if (!Directory.Exists(labelsDir))
+                    continue;
+
+                var labelFiles = Directory.GetFiles(labelsDir, "*.txt");
+                foreach (var labelFile in labelFiles)
+                {
+                    ConvertDecimalSeparatorInFile(labelFile, fromSeparator, toSeparator);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Converts decimal separator in a single label file
+        /// </summary>
+        private void ConvertDecimalSeparatorInFile(string labelFile, char fromSeparator, char toSeparator)
+        {
+            try
+            {
+                var lines = File.ReadAllLines(labelFile);
+                var modifiedLines = new List<string>();
+                bool modified = false;
+
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        modifiedLines.Add(line);
+                        continue;
+                    }
+
+                    var parts = line.Trim().Split(' ');
+                    if (parts.Length < 5)
+                    {
+                        modifiedLines.Add(line);
+                        continue;
+                    }
+
+                    // Convert decimal separator in numeric parts (indices 1-4)
+                    for (int i = 1; i < Math.Min(5, parts.Length); i++)
+                    {
+                        if (parts[i].Contains(fromSeparator))
+                        {
+                            parts[i] = parts[i].Replace(fromSeparator, toSeparator);
+                            modified = true;
+                        }
+                    }
+
+                    modifiedLines.Add(string.Join(" ", parts));
+                }
+
+                // Only write if we actually modified something
+                if (modified)
+                {
+                    File.WriteAllLines(labelFile, modifiedLines);
+                }
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"Error converting decimal separator in file {labelFile}: {ex.Message}");
+            }
+        }
 
         #endregion
 

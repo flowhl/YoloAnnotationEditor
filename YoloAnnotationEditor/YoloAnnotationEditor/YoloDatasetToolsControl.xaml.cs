@@ -2591,5 +2591,246 @@ namespace YoloAnnotationEditor
         }
 
         #endregion
+
+        #region Decimal Separator Conversion
+
+        private void BrowseDecimalSeparatorInput_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "YAML files (*.yaml, *.yml)|*.yaml;*.yml|All files (*.*)|*.*",
+                Title = "Select YOLO Dataset YAML File"
+            };
+
+            openFileDialog.ShowDialog();
+
+            if (openFileDialog.FileName != null)
+            {
+                txtDecimalSeparatorInput.Text = openFileDialog.FileName;
+            }
+        }
+
+        private async void ConvertCommaToDot_Click(object sender, RoutedEventArgs e)
+        {
+            await ConvertDecimalSeparator(',', '.');
+        }
+
+        private async void ConvertDotToComma_Click(object sender, RoutedEventArgs e)
+        {
+            await ConvertDecimalSeparator('.', ',');
+        }
+
+        private async Task ConvertDecimalSeparator(char fromSeparator, char toSeparator)
+        {
+            if (string.IsNullOrEmpty(txtDecimalSeparatorInput.Text))
+            {
+                System.Windows.MessageBox.Show("Please select a dataset YAML file.", "Missing Input",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string yamlPath = txtDecimalSeparatorInput.Text;
+            if (!File.Exists(yamlPath))
+            {
+                System.Windows.MessageBox.Show("The selected YAML file does not exist.", "Invalid File",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Get the dataset base path (directory containing the YAML file)
+            string datasetPath = Path.GetDirectoryName(yamlPath);
+            if (string.IsNullOrEmpty(datasetPath))
+            {
+                System.Windows.MessageBox.Show("Could not determine dataset directory from YAML file.", "Invalid Path",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            // Confirm action
+            string fromName = fromSeparator == ',' ? "comma (,)" : "dot (.)";
+            string toName = toSeparator == ',' ? "comma (,)" : "dot (.)";
+            var result = System.Windows.MessageBox.Show(
+                $"This will convert all decimal separators from {fromName} to {toName} in the selected dataset.\n\n" +
+                "This operation will modify your label files. Make sure you have a backup!\n\n" +
+                "Do you want to continue?",
+                "Confirm Conversion",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            // Disable buttons during conversion
+            btnConvertCommaToDot.IsEnabled = false;
+            btnConvertDotToComma.IsEnabled = false;
+            btnBrowseDecimalSeparatorInput.IsEnabled = false;
+            txtDecimalSeparatorLog.Clear();
+            txtDecimalSeparatorStatus.Text = "Converting...";
+            pbDecimalSeparatorProgress.Value = 0;
+
+            try
+            {
+                await Task.Run(() => ConvertDecimalSeparatorInDataset(datasetPath, fromSeparator, toSeparator));
+
+                txtDecimalSeparatorStatus.Text = "Conversion completed successfully!";
+                pbDecimalSeparatorProgress.Value = 100;
+                LogDecimalSeparatorMessage($"Conversion from {fromName} to {toName} completed successfully!");
+
+                System.Windows.MessageBox.Show($"All label files have been converted from {fromName} to {toName}.",
+                    "Conversion Complete", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                txtDecimalSeparatorStatus.Text = "Error during conversion";
+                LogDecimalSeparatorMessage($"Error: {ex.Message}");
+                System.Windows.MessageBox.Show($"Error during conversion: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnConvertCommaToDot.IsEnabled = true;
+                btnConvertDotToComma.IsEnabled = true;
+                btnBrowseDecimalSeparatorInput.IsEnabled = true;
+            }
+        }
+
+        private void ConvertDecimalSeparatorInDataset(string datasetBasePath, char fromSeparator, char toSeparator)
+        {
+            bool includeTrain = false, includeVal = false, includeTest = false;
+
+            Dispatcher.Invoke(() =>
+            {
+                includeTrain = chkDecimalSeparatorTrain.IsChecked ?? false;
+                includeVal = chkDecimalSeparatorVal.IsChecked ?? false;
+                includeTest = chkDecimalSeparatorTest.IsChecked ?? false;
+            });
+
+            var labelDirectories = new List<string>();
+
+            if (includeTrain)
+                labelDirectories.Add(Path.Combine(datasetBasePath, "labels", "train"));
+            if (includeVal)
+                labelDirectories.Add(Path.Combine(datasetBasePath, "labels", "val"));
+            if (includeTest)
+                labelDirectories.Add(Path.Combine(datasetBasePath, "labels", "test"));
+
+            int totalFiles = 0;
+            int processedFiles = 0;
+            int modifiedFiles = 0;
+
+            // Count total files
+            foreach (var labelsDir in labelDirectories)
+            {
+                if (Directory.Exists(labelsDir))
+                {
+                    totalFiles += Directory.GetFiles(labelsDir, "*.txt").Length;
+                }
+            }
+
+            if (totalFiles == 0)
+            {
+                LogDecimalSeparatorMessage("No label files found in selected splits.");
+                return;
+            }
+
+            LogDecimalSeparatorMessage($"Found {totalFiles} label files to process...");
+
+            foreach (var labelsDir in labelDirectories)
+            {
+                if (!Directory.Exists(labelsDir))
+                {
+                    LogDecimalSeparatorMessage($"Directory does not exist: {labelsDir}");
+                    continue;
+                }
+
+                string splitName = Path.GetFileName(labelsDir);
+                LogDecimalSeparatorMessage($"Processing {splitName} split...");
+
+                var labelFiles = Directory.GetFiles(labelsDir, "*.txt");
+                foreach (var labelFile in labelFiles)
+                {
+                    bool wasModified = ConvertDecimalSeparatorInFile(labelFile, fromSeparator, toSeparator);
+                    if (wasModified)
+                        modifiedFiles++;
+
+                    processedFiles++;
+
+                    // Update progress
+                    int progress = (int)((double)processedFiles / totalFiles * 100);
+                    Dispatcher.Invoke(() =>
+                    {
+                        pbDecimalSeparatorProgress.Value = progress;
+                        txtDecimalSeparatorStatus.Text = $"Processing {processedFiles}/{totalFiles} files...";
+                    });
+                }
+
+                LogDecimalSeparatorMessage($"Completed {splitName} split: {labelFiles.Length} files processed");
+            }
+
+            LogDecimalSeparatorMessage($"Total files processed: {processedFiles}");
+            LogDecimalSeparatorMessage($"Files modified: {modifiedFiles}");
+        }
+
+        private bool ConvertDecimalSeparatorInFile(string labelFile, char fromSeparator, char toSeparator)
+        {
+            try
+            {
+                var lines = File.ReadAllLines(labelFile);
+                var modifiedLines = new List<string>();
+                bool modified = false;
+
+                foreach (var line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        modifiedLines.Add(line);
+                        continue;
+                    }
+
+                    var parts = line.Trim().Split(' ');
+                    if (parts.Length < 5)
+                    {
+                        modifiedLines.Add(line);
+                        continue;
+                    }
+
+                    // Convert decimal separator in numeric parts (indices 1-4)
+                    for (int i = 1; i < Math.Min(5, parts.Length); i++)
+                    {
+                        if (parts[i].Contains(fromSeparator))
+                        {
+                            parts[i] = parts[i].Replace(fromSeparator, toSeparator);
+                            modified = true;
+                        }
+                    }
+
+                    modifiedLines.Add(string.Join(" ", parts));
+                }
+
+                // Only write if we actually modified something
+                if (modified)
+                {
+                    File.WriteAllLines(labelFile, modifiedLines);
+                }
+
+                return modified;
+            }
+            catch (Exception ex)
+            {
+                LogDecimalSeparatorMessage($"Error converting {Path.GetFileName(labelFile)}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private void LogDecimalSeparatorMessage(string message)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                txtDecimalSeparatorLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}\n");
+                txtDecimalSeparatorLog.ScrollToEnd();
+            });
+        }
+
+        #endregion
     }
 }
