@@ -170,6 +170,65 @@
                         </Grid>
                     </GroupBox>
 
+                    <!-- Split Dataset into Train/Val/Test -->
+                    <GroupBox Header="Split into Train/Val/Test" Margin="0,20,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Name="txtSplitTrainValTestInput" IsReadOnly="True"/>
+                            <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseSplitTrainValTest" Content="Browse..." Click="BrowseSplitTrainValTest_Click"/>
+
+                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Vertical" Margin="0,10,0,0">
+                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,10" Foreground="Gray">
+                                    Splits a consolidated dataset (train only) into train/val/test splits with customizable percentages.
+                                </TextBlock>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <Label Grid.Row="0" Grid.Column="0" Content="Train %:"/>
+                                    <TextBox Grid.Row="0" Grid.Column="1" Name="txtTrainPercent" Text="80" Margin="5,0,0,5"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="2" Text="%" VerticalAlignment="Center" Margin="5,0,0,0"/>
+
+                                    <Label Grid.Row="1" Grid.Column="0" Content="Val %:"/>
+                                    <TextBox Grid.Row="1" Grid.Column="1" Name="txtValPercent" Text="10" Margin="5,0,0,5"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="2" Text="%" VerticalAlignment="Center" Margin="5,0,0,0"/>
+
+                                    <Label Grid.Row="2" Grid.Column="0" Content="Test %:"/>
+                                    <TextBox Grid.Row="2" Grid.Column="1" Name="txtTestPercent" Text="10" Margin="5,0,0,5"/>
+                                    <TextBlock Grid.Row="2" Grid.Column="2" Text="%" VerticalAlignment="Center" Margin="5,0,0,0"/>
+
+                                    <StackPanel Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Label Content="Random Seed (optional):"/>
+                                        <TextBox Name="txtSplitTrainValTestSeed" Width="100" Margin="5,0,0,0"/>
+                                    </StackPanel>
+                                </Grid>
+
+                                <Button Name="btnSplitIntoTrainValTest" Content="Split Dataset" Click="SplitIntoTrainValTest_Click"
+                                        HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </GroupBox>
+
                     <TextBox Name="txtSplitLog" Height="200" Margin="0,20,0,0" IsReadOnly="True"
                              VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
                 </StackPanel>

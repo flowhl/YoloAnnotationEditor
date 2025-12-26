@@ -2590,6 +2590,269 @@ namespace YoloAnnotationEditor
             LogSplitMessage("Consolidation completed successfully!");
         }
 
+        // Split Dataset into Train/Val/Test
+        private void BrowseSplitTrainValTest_Click(object sender, RoutedEventArgs e)
+        {
+            using (var dialog = new FolderBrowserDialog())
+            {
+                dialog.Description = "Select dataset directory";
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    if (ValidateYoloDataset(dialog.SelectedPath))
+                    {
+                        txtSplitTrainValTestInput.Text = dialog.SelectedPath;
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Invalid YOLO dataset structure.", "Invalid Dataset",
+                            MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
+            }
+        }
+
+        private async void SplitIntoTrainValTest_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtSplitTrainValTestInput.Text))
+            {
+                System.Windows.MessageBox.Show("Please select a dataset directory.", "Missing Path",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Validate percentages
+            if (!double.TryParse(txtTrainPercent.Text, out double trainPercent) ||
+                !double.TryParse(txtValPercent.Text, out double valPercent) ||
+                !double.TryParse(txtTestPercent.Text, out double testPercent))
+            {
+                System.Windows.MessageBox.Show("Please enter valid percentage values.", "Invalid Input",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (trainPercent < 0 || valPercent < 0 || testPercent < 0)
+            {
+                System.Windows.MessageBox.Show("Percentages cannot be negative.", "Invalid Input",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            double total = trainPercent + valPercent + testPercent;
+            if (Math.Abs(total - 100) > 0.01)
+            {
+                System.Windows.MessageBox.Show($"Percentages must sum to 100. Current sum: {total}%", "Invalid Input",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = System.Windows.MessageBox.Show(
+                $"This will split the dataset with the following distribution:\n" +
+                $"Train: {trainPercent}%\n" +
+                $"Val: {valPercent}%\n" +
+                $"Test: {testPercent}%\n\n" +
+                $"This operation will move files from the train split into val and test splits.\n\n" +
+                $"Continue?",
+                "Confirm Split",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            btnSplitIntoTrainValTest.IsEnabled = false;
+            txtSplitLog.Clear();
+
+            try
+            {
+                await Task.Run(() => SplitIntoTrainValTestMethod(trainPercent, valPercent, testPercent));
+                LogSplitMessage("Dataset split completed!");
+                System.Windows.MessageBox.Show("Dataset split successfully!", "Success",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                LogSplitMessage($"Error: {ex.Message}");
+                System.Windows.MessageBox.Show($"Error: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnSplitIntoTrainValTest.IsEnabled = true;
+            }
+        }
+
+        private void SplitIntoTrainValTestMethod(double trainPercent, double valPercent, double testPercent)
+        {
+            string datasetPath = "";
+            string seedText = "";
+            Dispatcher.Invoke(() =>
+            {
+                datasetPath = txtSplitTrainValTestInput.Text;
+                seedText = txtSplitTrainValTestSeed.Text;
+            });
+
+            LogSplitMessage($"Splitting dataset: {datasetPath}");
+            LogSplitMessage($"Distribution - Train: {trainPercent}%, Val: {valPercent}%, Test: {testPercent}%");
+
+            string imageFolderTrain = Path.Combine(datasetPath, "images", "train");
+            string imageFolderVal = Path.Combine(datasetPath, "images", "val");
+            string imageFolderTest = Path.Combine(datasetPath, "images", "test");
+
+            string labelFolderTrain = Path.Combine(datasetPath, "labels", "train");
+            string labelFolderVal = Path.Combine(datasetPath, "labels", "val");
+            string labelFolderTest = Path.Combine(datasetPath, "labels", "test");
+
+            // Validate that train folder exists
+            if (!Directory.Exists(imageFolderTrain) || !Directory.Exists(labelFolderTrain))
+            {
+                LogSplitMessage("Train folder not found. Cannot split dataset.");
+                throw new Exception("Train folder not found in dataset.");
+            }
+
+            // Create val and test folders
+            Directory.CreateDirectory(imageFolderVal);
+            Directory.CreateDirectory(imageFolderTest);
+            Directory.CreateDirectory(labelFolderVal);
+            Directory.CreateDirectory(labelFolderTest);
+
+            // First, consolidate any existing val/test files back to train
+            LogSplitMessage("Consolidating existing val and test files to train...");
+            foreach (var split in new[] { "val", "test" })
+            {
+                string srcImagesPath = Path.Combine(datasetPath, "images", split);
+                string srcLabelsPath = Path.Combine(datasetPath, "labels", split);
+
+                if (Directory.Exists(srcImagesPath))
+                {
+                    var images = Directory.GetFiles(srcImagesPath)
+                        .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                                    f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    foreach (var imagePath in images)
+                    {
+                        string fileName = Path.GetFileName(imagePath);
+                        string destPath = Path.Combine(imageFolderTrain, fileName);
+
+                        if (!File.Exists(destPath))
+                        {
+                            File.Move(imagePath, destPath);
+                        }
+                    }
+                }
+
+                if (Directory.Exists(srcLabelsPath))
+                {
+                    var labels = Directory.GetFiles(srcLabelsPath, "*.txt");
+                    foreach (var labelPath in labels)
+                    {
+                        string fileName = Path.GetFileName(labelPath);
+                        string destPath = Path.Combine(labelFolderTrain, fileName);
+
+                        if (!File.Exists(destPath))
+                        {
+                            File.Move(labelPath, destPath);
+                        }
+                    }
+                }
+            }
+
+            // Get all images from train
+            var trainImages = Directory.GetFiles(imageFolderTrain)
+                .Where(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            LogSplitMessage($"Total images in train: {trainImages.Count}");
+
+            // Shuffle images
+            Random rnd;
+            if (!string.IsNullOrWhiteSpace(seedText) && int.TryParse(seedText, out int seed))
+            {
+                rnd = new Random(seed);
+                LogSplitMessage($"Using random seed: {seed}");
+            }
+            else
+            {
+                rnd = new Random();
+                LogSplitMessage("Using random shuffle (no seed specified)");
+            }
+
+            trainImages = trainImages.OrderBy(x => rnd.Next()).ToList();
+
+            // Calculate split counts
+            int totalImages = trainImages.Count;
+            int valCount = (int)Math.Round(totalImages * valPercent / 100.0);
+            int testCount = (int)Math.Round(totalImages * testPercent / 100.0);
+
+            LogSplitMessage($"Moving {valCount} images to val split...");
+            LogSplitMessage($"Moving {testCount} images to test split...");
+            LogSplitMessage($"Keeping {totalImages - valCount - testCount} images in train split...");
+
+            // Move to val
+            int movedToVal = 0;
+            for (int i = 0; i < valCount && i < trainImages.Count; i++)
+            {
+                string sourceImagePath = trainImages[i];
+                string imageFileName = Path.GetFileName(sourceImagePath);
+                string targetImagePath = Path.Combine(imageFolderVal, imageFileName);
+
+                string labelFileName = Path.GetFileNameWithoutExtension(imageFileName) + ".txt";
+                string sourceLabelPath = Path.Combine(labelFolderTrain, labelFileName);
+                string targetLabelPath = Path.Combine(labelFolderVal, labelFileName);
+
+                try
+                {
+                    File.Move(sourceImagePath, targetImagePath);
+                    movedToVal++;
+
+                    if (File.Exists(sourceLabelPath))
+                    {
+                        File.Move(sourceLabelPath, targetLabelPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogSplitMessage($"Error moving {imageFileName}: {ex.Message}");
+                }
+            }
+
+            // Move to test
+            int movedToTest = 0;
+            for (int i = valCount; i < valCount + testCount && i < trainImages.Count; i++)
+            {
+                string sourceImagePath = trainImages[i];
+                string imageFileName = Path.GetFileName(sourceImagePath);
+                string targetImagePath = Path.Combine(imageFolderTest, imageFileName);
+
+                string labelFileName = Path.GetFileNameWithoutExtension(imageFileName) + ".txt";
+                string sourceLabelPath = Path.Combine(labelFolderTrain, labelFileName);
+                string targetLabelPath = Path.Combine(labelFolderTest, labelFileName);
+
+                try
+                {
+                    File.Move(sourceImagePath, targetImagePath);
+                    movedToTest++;
+
+                    if (File.Exists(sourceLabelPath))
+                    {
+                        File.Move(sourceLabelPath, targetLabelPath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogSplitMessage($"Error moving {imageFileName}: {ex.Message}");
+                }
+            }
+
+            LogSplitMessage($"Split completed:");
+            LogSplitMessage($"  Train: {totalImages - movedToVal - movedToTest} images");
+            LogSplitMessage($"  Val: {movedToVal} images");
+            LogSplitMessage($"  Test: {movedToTest} images");
+        }
+
         #endregion
 
         #region Decimal Separator Conversion
