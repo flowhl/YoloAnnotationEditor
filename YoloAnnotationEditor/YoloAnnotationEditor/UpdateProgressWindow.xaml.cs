@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Windows;
 
 namespace YoloAnnotationEditor
@@ -20,6 +21,7 @@ namespace YoloAnnotationEditor
 
         public void UpdateProgress(int percentage, string details = "")
         {
+            Trace.WriteLine($"Progress: {percentage}%, Details: {details}");
             Dispatcher.Invoke(() =>
             {
                 ProgressBar.Value = percentage;
