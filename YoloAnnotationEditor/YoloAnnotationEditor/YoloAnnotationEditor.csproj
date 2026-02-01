@@ -33,7 +33,7 @@
     <PackageReference Include="Sdcb.PaddleOCR.Models.LocalV4" Version="2.7.0.1" />
     <PackageReference Include="Sdcb.PaddleOCR.Models.LocalV5" Version="3.0.0" />
     <PackageReference Include="Sdcb.PaddleOCR.Models.Shared" Version="2.7.0.1" />
-    <PackageReference Include="Velopack" Version="0.0.1053" />
+    <PackageReference Include="Velopack" Version="0.0.1298" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <PackageReference Include="YoloDotNet" Version="2.3.0" />
   </ItemGroup>

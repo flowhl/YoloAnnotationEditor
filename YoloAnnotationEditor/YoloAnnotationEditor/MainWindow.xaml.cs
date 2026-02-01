@@ -9,6 +9,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 using Velopack;
+using YoloAnnotationEditor.Helpers;
 
 namespace YoloAnnotationEditor;
 
@@ -20,7 +21,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         Loaded += MainWindow_Loaded;
-        VelopackApp.Build().Run();
+        VelopackApp.Build().SetLogger(WpfVelopackLogManager.Logger).Run();
         InitializeComponent();
     }
 

@@ -6,8 +6,11 @@ using System.Printing;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
-using Velopack.Sources;
 using Velopack;
+using Velopack.Locators;
+using Velopack.Logging;
+using Velopack.Sources;
+using YoloAnnotationEditor.Helpers;
 using MessageBox = System.Windows.MessageBox;
 
 namespace YoloAnnotationEditor
@@ -20,8 +23,13 @@ namespace YoloAnnotationEditor
 
             try
             {
+                //Create logger
+                var locator = VelopackLocator.CreateDefaultForPlatform(WpfVelopackLogManager.Logger);
+
+                //Create updater
                 var githubSource = new GithubSource("https://github.com/flowhl/YoloAnnotationEditor", null, false);
-                var mgr = new UpdateManager(githubSource, new UpdateOptions { AllowVersionDowngrade = false });
+                var mgr = new UpdateManager(githubSource, new UpdateOptions { AllowVersionDowngrade = false }, locator);
+
 
                 // Show progress window for checking updates
                 progressWindow = new UpdateProgressWindow();
@@ -50,6 +58,12 @@ namespace YoloAnnotationEditor
                 progressWindow.Show();
                 progressWindow.UpdateStatus("Downloading update...");
                 progressWindow.UpdateProgress(0, $"Downloading version {newVersion?.TargetFullRelease?.Version.ToString()}");
+
+                //Subscribe to log events
+                WpfVelopackLogManager.Logger.LogUpdated += (s, m) =>
+                {
+                    progressWindow?.UpdateStatus(m);
+                };
 
                 // download new version with progress tracking
                 mgr.DownloadUpdates(newVersion, progress =>
