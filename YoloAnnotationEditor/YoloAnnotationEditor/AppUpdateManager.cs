@@ -28,9 +28,9 @@ namespace YoloAnnotationEditor
                 //Create logger
                 var locator = VelopackLocator.CreateDefaultForPlatform(WpfVelopackLogManager.Logger);
 
-                //Create updater
+                //Create updater without deltas
                 var githubSource = new GithubSource("https://github.com/flowhl/YoloAnnotationEditor", null, false);
-                var mgr = new UpdateManager(githubSource, new UpdateOptions { AllowVersionDowngrade = false }, locator);
+                var mgr = new UpdateManager(githubSource, new UpdateOptions { AllowVersionDowngrade = false, MaximumDeltasBeforeFallback = -1 }, locator);
 
                 // Show progress window for checking updates
                 progressWindow = new UpdateProgressWindow();
