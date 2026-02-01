@@ -13,6 +13,7 @@ namespace YoloAnnotationEditor
 
         public void UpdateStatus(string status)
         {
+            Trace.WriteLine($"Status Update: {status}");
             Dispatcher.Invoke(() =>
             {
                 StatusText.Text = status;
