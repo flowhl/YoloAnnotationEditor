@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Printing;
@@ -23,13 +24,13 @@ namespace YoloAnnotationEditor
 
             try
             {
+                Trace.WriteLine("Checking for updates");
                 //Create logger
                 var locator = VelopackLocator.CreateDefaultForPlatform(WpfVelopackLogManager.Logger);
 
                 //Create updater
                 var githubSource = new GithubSource("https://github.com/flowhl/YoloAnnotationEditor", null, false);
                 var mgr = new UpdateManager(githubSource, new UpdateOptions { AllowVersionDowngrade = false }, locator);
-
 
                 // Show progress window for checking updates
                 progressWindow = new UpdateProgressWindow();
@@ -39,8 +40,10 @@ namespace YoloAnnotationEditor
 
                 // check for new version
                 var newVersion = mgr.CheckForUpdates();
+                Trace.WriteLine($"Found Version {newVersion?.TargetFullRelease?.Version.ToString()}");
                 if (newVersion == null)
                 {
+                    Trace.WriteLine($"New Version is null, closing update window");
                     progressWindow.Close();
                     return; // no update available
                 }
@@ -58,6 +61,7 @@ namespace YoloAnnotationEditor
                 progressWindow.Show();
                 progressWindow.UpdateStatus("Downloading update...");
                 progressWindow.UpdateProgress(0, $"Downloading version {newVersion?.TargetFullRelease?.Version.ToString()}");
+                Trace.WriteLine($"Starting download of version {newVersion?.TargetFullRelease?.Version.ToString()}");
 
                 //Subscribe to log events
                 WpfVelopackLogManager.Logger.LogUpdated += (s, m) =>
@@ -66,10 +70,15 @@ namespace YoloAnnotationEditor
                 };
 
                 // download new version with progress tracking
-                mgr.DownloadUpdates(newVersion, progress =>
+                var updateTask =  mgr.DownloadUpdatesAsync(newVersion, progress =>
                 {
+                    Trace.WriteLine($"Download progress: {progress}%");
                     progressWindow.UpdateProgress(progress, $"Downloaded {progress}%");
                 });
+
+                Trace.WriteLine("Waiting for download to complete");
+                updateTask.Wait();
+                Trace.WriteLine("Download completed");
 
                 progressWindow.UpdateStatus("Installing update...");
                 progressWindow.SetIndeterminate(true);

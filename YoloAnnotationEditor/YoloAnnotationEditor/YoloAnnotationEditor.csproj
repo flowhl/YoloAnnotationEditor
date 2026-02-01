@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>True</UseWindowsForms>
-	  <FileVersion>1.0.15</FileVersion>
+	  <FileVersion>1.0.16</FileVersion>
 	  <ApplicationIcon>Images\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
