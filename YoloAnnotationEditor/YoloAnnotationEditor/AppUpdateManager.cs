@@ -37,6 +37,7 @@ namespace YoloAnnotationEditor
                 progressWindow.Show();
                 progressWindow.UpdateStatus("Checking for updates...");
                 progressWindow.SetIndeterminate(true);
+                Trace.WriteLine("Checking for new version...");
 
                 // check for new version
                 var newVersion = mgr.CheckForUpdates();
