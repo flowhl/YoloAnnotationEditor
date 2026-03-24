@@ -155,6 +155,10 @@
             Click="BtnBatchLabelEditor_Click" Margin="0,0,10,0" Padding="5,2"
             ToolTip="Open the batch label editor to change classes across multiple images at once"/>
 
+                            <Button x:Name="BtnBatchRedetect" Content="Batch Redetect"
+            Click="BtnBatchRedetect_Click" Margin="0,0,10,0" Padding="5,2"
+            ToolTip="Redetect all images in the dataset using YOLO (clears existing annotations)"/>
+
                             <TextBlock Text="Navigation: ←→↑↓ keys" VerticalAlignment="Center"
                Margin="20,0,0,0" FontStyle="Italic" Foreground="Gray"/>
                         </StackPanel>
