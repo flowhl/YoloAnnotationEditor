@@ -3095,5 +3095,166 @@ namespace YoloAnnotationEditor
         }
 
         #endregion
+
+        #region Create Missing Labels
+
+        private void BrowseCreateMissingLabels_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "YAML files (*.yaml, *.yml)|*.yaml;*.yml|All files (*.*)|*.*",
+                Title = "Select YOLO Dataset YAML File"
+            };
+
+            openFileDialog.ShowDialog();
+
+            if (!string.IsNullOrEmpty(openFileDialog.FileName))
+            {
+                txtCreateMissingLabelsInput.Text = openFileDialog.FileName;
+            }
+        }
+
+        private async void CreateMissingLabels_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtCreateMissingLabelsInput.Text))
+            {
+                System.Windows.MessageBox.Show("Please select a dataset YAML file.", "Missing Input",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string yamlPath = txtCreateMissingLabelsInput.Text;
+            if (!File.Exists(yamlPath))
+            {
+                System.Windows.MessageBox.Show("The selected YAML file does not exist.", "Invalid File",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            string datasetPath = Path.GetDirectoryName(yamlPath);
+            if (string.IsNullOrEmpty(datasetPath))
+            {
+                System.Windows.MessageBox.Show("Could not determine dataset directory from YAML file.", "Invalid Path",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            btnCreateMissingLabels.IsEnabled = false;
+            btnBrowseCreateMissingLabels.IsEnabled = false;
+            pbCreateMissingLabelsProgress.Value = 0;
+            txtCreateMissingLabelsLog.Clear();
+
+            bool includeTrain = chkCreateMissingLabelsTrain.IsChecked ?? false;
+            bool includeVal = chkCreateMissingLabelsVal.IsChecked ?? false;
+            bool includeTest = chkCreateMissingLabelsTest.IsChecked ?? false;
+
+            await Task.Run(() => CreateMissingLabelsMethod(datasetPath, includeTrain, includeVal, includeTest));
+
+            btnCreateMissingLabels.IsEnabled = true;
+            btnBrowseCreateMissingLabels.IsEnabled = true;
+        }
+
+        private void CreateMissingLabelsMethod(string datasetPath, bool includeTrain, bool includeVal, bool includeTest)
+        {
+            var splits = new List<string>();
+            if (includeTrain) splits.Add("train");
+            if (includeVal) splits.Add("val");
+            if (includeTest) splits.Add("test");
+
+            if (splits.Count == 0)
+            {
+                LogCreateMissingLabelsMessage("No splits selected.");
+                return;
+            }
+
+            var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".bmp", ".webp" };
+
+            int totalImages = 0;
+            int createdFiles = 0;
+            int skippedFiles = 0;
+            int processedImages = 0;
+
+            // Count total images first
+            foreach (var split in splits)
+            {
+                string imagesDir = Path.Combine(datasetPath, "images", split);
+                if (Directory.Exists(imagesDir))
+                    totalImages += Directory.GetFiles(imagesDir).Count(f => imageExtensions.Contains(Path.GetExtension(f)));
+            }
+
+            if (totalImages == 0)
+            {
+                LogCreateMissingLabelsMessage("No images found in the selected splits.");
+                return;
+            }
+
+            LogCreateMissingLabelsMessage($"Found {totalImages} images across {splits.Count} split(s). Scanning...");
+
+            foreach (var split in splits)
+            {
+                string imagesDir = Path.Combine(datasetPath, "images", split);
+                string labelsDir = Path.Combine(datasetPath, "labels", split);
+
+                if (!Directory.Exists(imagesDir))
+                {
+                    LogCreateMissingLabelsMessage($"Images directory does not exist, skipping: {imagesDir}");
+                    continue;
+                }
+
+                // Ensure labels directory exists
+                Directory.CreateDirectory(labelsDir);
+
+                var imageFiles = Directory.GetFiles(imagesDir)
+                    .Where(f => imageExtensions.Contains(Path.GetExtension(f)))
+                    .ToArray();
+
+                LogCreateMissingLabelsMessage($"Processing {split} split ({imageFiles.Length} images)...");
+
+                foreach (var imageFile in imageFiles)
+                {
+                    string baseName = Path.GetFileNameWithoutExtension(imageFile);
+                    string labelPath = Path.Combine(labelsDir, baseName + ".txt");
+
+                    if (File.Exists(labelPath))
+                    {
+                        skippedFiles++;
+                    }
+                    else
+                    {
+                        File.Create(labelPath).Close();
+                        createdFiles++;
+                        LogCreateMissingLabelsMessage($"Created: {Path.GetFileName(labelPath)}");
+                    }
+
+                    processedImages++;
+                    int progress = (int)((double)processedImages / totalImages * 100);
+                    Dispatcher.Invoke(() =>
+                    {
+                        pbCreateMissingLabelsProgress.Value = progress;
+                        txtCreateMissingLabelsStatus.Text = $"Processing {processedImages}/{totalImages} images...";
+                    });
+                }
+
+                LogCreateMissingLabelsMessage($"Completed {split} split.");
+            }
+
+            LogCreateMissingLabelsMessage($"Done. Created: {createdFiles}, Already existed: {skippedFiles}.");
+            Dispatcher.Invoke(() =>
+            {
+                pbCreateMissingLabelsProgress.Value = 100;
+                txtCreateMissingLabelsStatus.Text = $"Done. Created {createdFiles} label file(s).";
+            });
+        }
+
+        private void LogCreateMissingLabelsMessage(string message)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                txtCreateMissingLabelsLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}\n");
+                txtCreateMissingLabelsLog.ScrollToEnd();
+            });
+        }
+
+        #endregion
     }
 }
