@@ -1,0 +1,265 @@
+<Window x:Class="YoloAnnotationEditor.BatchLabelEditor"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Batch Label Editor"
+        Height="750" Width="1100"
+        WindowStartupLocation="CenterScreen"
+        MinHeight="600" MinWidth="900">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Step indicator -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+            <Border x:Name="Step1Indicator" Background="#2196F3" CornerRadius="12" Padding="8,4" Margin="0,0,5,0">
+                <TextBlock Text="1. Select Images" Foreground="White" FontWeight="SemiBold"/>
+            </Border>
+            <TextBlock Text="→" VerticalAlignment="Center" Margin="5,0" FontSize="16" Foreground="Gray"/>
+            <Border x:Name="Step2Indicator" Background="LightGray" CornerRadius="12" Padding="8,4" Margin="0,0,5,0">
+                <TextBlock x:Name="Step2Text" Text="2. Draw Region" Foreground="DarkGray" FontWeight="SemiBold"/>
+            </Border>
+            <TextBlock Text="→" VerticalAlignment="Center" Margin="5,0" FontSize="16" Foreground="Gray"/>
+            <Border x:Name="Step3Indicator" Background="LightGray" CornerRadius="12" Padding="8,4" Margin="0,0,5,0">
+                <TextBlock x:Name="Step3Text" Text="3. Select New Class" Foreground="DarkGray" FontWeight="SemiBold"/>
+            </Border>
+            <TextBlock Text="→" VerticalAlignment="Center" Margin="5,0" FontSize="16" Foreground="Gray"/>
+            <Border x:Name="Step4Indicator" Background="LightGray" CornerRadius="12" Padding="8,4">
+                <TextBlock x:Name="Step4Text" Text="4. Apply" Foreground="DarkGray" FontWeight="SemiBold"/>
+            </Border>
+        </StackPanel>
+
+        <!-- Step content area -->
+        <Grid Grid.Row="1">
+            <!-- Step 1: Select Images -->
+            <Grid x:Name="Step1Panel">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Select the images you want to apply batch changes to:"
+                           FontSize="14" Margin="0,0,0,10"/>
+
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Image list with checkboxes -->
+                    <ListView Grid.Column="0" x:Name="LvImages"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              BorderThickness="1" BorderBrush="#FFABADB3">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="2">
+                                    <CheckBox IsChecked="{Binding IsSelected}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <Image Source="{Binding Thumbnail}" Width="60" Height="45" Stretch="Uniform" Margin="0,0,8,0"/>
+                                    <TextBlock Text="{Binding FileName}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding AnnotationCount, StringFormat=' ({0} labels)'}"
+                                               VerticalAlignment="Center" Foreground="Gray" Margin="4,0,0,0"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <!-- Selection controls -->
+                    <StackPanel Grid.Column="1" Margin="10,0,0,0" Width="120">
+                        <Button Content="Select All" Click="BtnSelectAll_Click" Padding="5,4" Margin="0,0,0,5"/>
+                        <Button Content="Select None" Click="BtnSelectNone_Click" Padding="5,4" Margin="0,0,0,5"/>
+                        <Button Content="Invert Selection" Click="BtnInvertSelection_Click" Padding="5,4" Margin="0,0,0,15"/>
+
+                        <TextBlock Text="Filter:" Margin="0,0,0,3"/>
+                        <TextBox x:Name="TxtImageFilter" TextChanged="TxtImageFilter_TextChanged" Margin="0,0,0,10"/>
+
+                        <Border Background="#F0F0F0" CornerRadius="4" Padding="8" Margin="0,10,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Selection Summary" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBlock x:Name="TxtSelectionCount" Text="0 images selected"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Grid>
+
+            <!-- Step 2: Draw Bounding Box Region -->
+            <Grid x:Name="Step2Panel" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="200"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0" Grid.ColumnSpan="2"
+                           Text="Draw a bounding box on the reference image to define the region. All labels whose center falls inside this region will be affected."
+                           FontSize="14" Margin="0,0,0,10" TextWrapping="Wrap"/>
+
+                <!-- Reference image selector -->
+                <Grid Grid.Row="1" Grid.Column="0" Margin="0,0,10,0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Reference Image:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <ListView Grid.Row="1" x:Name="LvReferenceImages" SelectionChanged="LvReferenceImages_SelectionChanged"
+                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                              BorderThickness="1" BorderBrush="#FFABADB3">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="2">
+                                    <Image Source="{Binding Thumbnail}" Width="40" Height="30" Stretch="Uniform" Margin="0,0,5,0"/>
+                                    <TextBlock Text="{Binding FileName}" VerticalAlignment="Center" FontSize="11"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+
+                <!-- Canvas for drawing bounding box -->
+                <Border Grid.Row="1" Grid.Column="1" BorderBrush="#FFABADB3" BorderThickness="1" Background="LightGray">
+                    <Grid>
+                        <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                            <Grid x:Name="ImageContainer"
+                                  PreviewMouseDown="Canvas_MouseDown"
+                                  PreviewMouseMove="Canvas_MouseMove"
+                                  PreviewMouseUp="Canvas_MouseUp">
+                                <Image x:Name="ReferenceImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                <Canvas x:Name="DrawingCanvas" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Background="Transparent"/>
+                            </Grid>
+                        </ScrollViewer>
+
+                        <!-- Region info overlay -->
+                        <Border Background="#CC000000" CornerRadius="4" Padding="8"
+                                HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10">
+                            <TextBlock x:Name="TxtRegionInfo" Text="Click and drag to draw a region"
+                                       Foreground="White" FontSize="12"/>
+                        </Border>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- Step 3: Select New Class -->
+            <Grid x:Name="Step3Panel" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Select the new class to assign to all labels within the defined region:"
+                           FontSize="14" Margin="0,0,0,15"/>
+
+                <Grid Grid.Row="1" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="300"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Search class:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                    <TextBox Grid.Column="1" x:Name="TxtClassFilter" TextChanged="TxtClassFilter_TextChanged"/>
+                </Grid>
+
+                <ListBox Grid.Row="2" x:Name="LbClasses" Height="200"
+                         SelectionChanged="LbClasses_SelectionChanged">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" Margin="2">
+                                <Rectangle Width="16" Height="16" Fill="{Binding Color}" Margin="0,0,8,0"/>
+                                <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" FontSize="14"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <!-- Preview summary -->
+                <Border Grid.Row="3" Background="#FFF3E0" BorderBrush="#FFB74D" BorderThickness="1"
+                        CornerRadius="4" Padding="12" Margin="0,15,0,0"
+                        x:Name="PreviewBorder" Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Preview" FontWeight="Bold" FontSize="14" Margin="0,0,0,5"/>
+                        <TextBlock x:Name="TxtPreviewSummary" TextWrapping="Wrap" FontSize="13"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+
+            <!-- Step 4: Apply with progress -->
+            <Grid x:Name="Step4Panel" Visibility="Collapsed">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Confirmation message -->
+                <Border Grid.Row="0" Background="#FFEBEE" BorderBrush="#E53935" BorderThickness="1"
+                        CornerRadius="4" Padding="15" Margin="0,0,0,15"
+                        x:Name="ConfirmationBorder">
+                    <StackPanel>
+                        <TextBlock Text="⚠ Confirm Batch Operation" FontWeight="Bold" FontSize="16"
+                                   Foreground="#C62828" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="TxtConfirmationDetails" TextWrapping="Wrap" FontSize="13"/>
+                        <TextBlock Text="This operation cannot be undone. Make sure you have a backup of your dataset."
+                                   FontStyle="Italic" Foreground="#C62828" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Progress -->
+                <StackPanel Grid.Row="1" x:Name="ProgressPanel" Visibility="Collapsed">
+                    <TextBlock x:Name="TxtProgressStatus" Text="Processing..." FontSize="14" Margin="0,0,0,5"/>
+                    <ProgressBar x:Name="ProgressBar" Height="25" Minimum="0" Maximum="100" Value="0"/>
+                    <TextBlock x:Name="TxtProgressPercent" Text="0%" HorizontalAlignment="Center" Margin="0,5,0,0" Foreground="Gray"/>
+                </StackPanel>
+
+                <!-- Results -->
+                <Border Grid.Row="2" x:Name="ResultsBorder" Visibility="Collapsed"
+                        Background="#E8F5E9" BorderBrush="#4CAF50" BorderThickness="1"
+                        CornerRadius="4" Padding="15" Margin="0,15,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Batch Operation Complete" FontWeight="Bold" FontSize="16"
+                                   Foreground="#2E7D32" Margin="0,0,0,8"/>
+                        <TextBlock x:Name="TxtResults" TextWrapping="Wrap" FontSize="13"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Log -->
+                <TextBlock Grid.Row="3" Text="Log:" FontWeight="SemiBold" Margin="0,15,0,5"
+                           x:Name="LogLabel" Visibility="Collapsed"/>
+                <TextBox Grid.Row="4" x:Name="TxtLog" IsReadOnly="True"
+                         VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"
+                         FontFamily="Consolas" FontSize="11" Visibility="Collapsed"/>
+            </Grid>
+        </Grid>
+
+        <!-- Status bar -->
+        <TextBlock Grid.Row="2" x:Name="TxtStatus" Text="Step 1: Select images to modify"
+                   Margin="0,10,0,5" Foreground="Gray"/>
+
+        <!-- Navigation buttons -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5,0,0">
+            <Button x:Name="BtnBack" Content="← Back" Click="BtnBack_Click"
+                    Width="100" Padding="5,6" Margin="0,0,10,0" IsEnabled="False"/>
+            <Button x:Name="BtnNext" Content="Next →" Click="BtnNext_Click"
+                    Width="100" Padding="5,6" Margin="0,0,10,0"/>
+            <Button x:Name="BtnApply" Content="Apply Changes" Click="BtnApply_Click"
+                    Width="120" Padding="5,6" Visibility="Collapsed"
+                    Background="#E53935" Foreground="White" FontWeight="SemiBold"/>
+            <Button x:Name="BtnClose" Content="Close" Click="BtnClose_Click"
+                    Width="80" Padding="5,6"/>
+        </StackPanel>
+    </Grid>
+</Window>
