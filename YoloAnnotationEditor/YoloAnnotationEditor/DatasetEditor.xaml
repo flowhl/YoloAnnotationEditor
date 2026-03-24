@@ -151,7 +151,11 @@
             Click="BtnRedetectUsingYolo_Click" Margin="0,0,10,0" Padding="5,2" 
             IsEnabled="{Binding IsChecked, ElementName=BtnEditMode}"/>
 
-                            <TextBlock Text="Navigation: ←→↑↓ keys" VerticalAlignment="Center" 
+                            <Button x:Name="BtnBatchLabelEditor" Content="Batch Label Editor"
+            Click="BtnBatchLabelEditor_Click" Margin="0,0,10,0" Padding="5,2"
+            ToolTip="Open the batch label editor to change classes across multiple images at once"/>
+
+                            <TextBlock Text="Navigation: ←→↑↓ keys" VerticalAlignment="Center"
                Margin="20,0,0,0" FontStyle="Italic" Foreground="Gray"/>
                         </StackPanel>
 

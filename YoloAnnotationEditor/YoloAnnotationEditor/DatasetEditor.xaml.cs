@@ -663,6 +663,55 @@ namespace YoloAnnotationEditor
                 _filteredClasses.View.Refresh();
             }
         }
+        private void BtnBatchLabelEditor_Click(object sender, RoutedEventArgs e)
+        {
+            if (_allImages.Count == 0)
+            {
+                MessageBox.Show("Please load a dataset first.", "No Dataset", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // Check for unsaved changes
+            if (_isDirty && _currentImage != null)
+            {
+                var result = MessageBox.Show("You have unsaved annotation changes. Would you like to save them before opening the batch editor?",
+                    "Unsaved Changes", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+
+                if (result == MessageBoxResult.Yes)
+                    SaveAnnotations();
+                else if (result == MessageBoxResult.Cancel)
+                    return;
+            }
+
+            var dialog = new BatchLabelEditor(_allImages, _classNames, _classColors);
+            dialog.Owner = Window.GetWindow(this);
+            var dialogResult = dialog.ShowDialog();
+
+            // Reload current image annotations if changes were made
+            if (dialogResult == true && _currentImage != null)
+            {
+                // Re-read labels from disk for all images
+                foreach (var img in _allImages)
+                {
+                    if (File.Exists(img.LabelPath))
+                    {
+                        var labels = File.ReadAllLines(img.LabelPath)
+                            .Where(line => !string.IsNullOrWhiteSpace(line))
+                            .Select(line => ParseYoloLabel(line))
+                            .Where(label => label != null)
+                            .ToList();
+                        img.Annotations = labels;
+                        img.ClassIds = labels.Select(l => l.ClassId).Distinct().ToList();
+                    }
+                }
+
+                // Refresh display
+                DisplayMainImage(_currentImage);
+                UpdateStatistics();
+                Notify.sendInfo("Dataset reloaded after batch edit");
+            }
+        }
+
         #endregion
 
         #region Smaller UI Methods
