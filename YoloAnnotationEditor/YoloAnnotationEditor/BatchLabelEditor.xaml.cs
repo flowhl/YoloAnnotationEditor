@@ -207,7 +207,7 @@ namespace YoloAnnotationEditor
 
             // Update navigation buttons
             BtnBack.IsEnabled = _currentStep > 1 && !_operationCompleted;
-            BtnNext.Visibility = _currentStep < 3 ? Visibility.Visible : Visibility.Collapsed;
+            BtnNext.Visibility = _currentStep < 4 ? Visibility.Visible : Visibility.Collapsed;
             BtnApply.Visibility = _currentStep == 4 && !_operationCompleted ? Visibility.Visible : Visibility.Collapsed;
 
             // Update status text
