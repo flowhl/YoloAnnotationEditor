@@ -31,6 +31,7 @@ using Path = System.IO.Path;
 using Point = System.Windows.Point;
 using Rectangle = System.Windows.Shapes.Rectangle;
 using UserControl = System.Windows.Controls.UserControl;
+using Window = System.Windows.Window;
 
 namespace YoloAnnotationEditor
 {

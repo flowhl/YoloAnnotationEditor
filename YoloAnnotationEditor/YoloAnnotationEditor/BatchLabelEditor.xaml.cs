@@ -11,6 +11,16 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using YoloAnnotationEditor.Models;
+using Brush = System.Windows.Media.Brush;
+using Brushes = System.Windows.Media.Brushes;
+using Color = System.Windows.Media.Color;
+using MessageBox = System.Windows.MessageBox;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
+using OpenFileDialog = System.Windows.Forms.OpenFileDialog;
+using Path = System.IO.Path;
+using Point = System.Windows.Point;
+using Rectangle = System.Windows.Shapes.Rectangle;
+using UserControl = System.Windows.Controls.UserControl;
 
 namespace YoloAnnotationEditor
 {
@@ -115,7 +125,7 @@ namespace YoloAnnotationEditor
                 {
                     ClassId = entry.Key,
                     Name = entry.Value,
-                    Color = classColors.ContainsKey(entry.Key) ? classColors[entry.Key] : Brushes.Red
+                    Color = classColors.ContainsKey(entry.Key) ? classColors[entry.Key] : System.Windows.Media.Brushes.Red
                 });
             }
 
