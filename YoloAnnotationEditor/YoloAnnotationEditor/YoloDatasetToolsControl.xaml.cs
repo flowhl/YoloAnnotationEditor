@@ -3131,10 +3131,28 @@ namespace YoloAnnotationEditor
                 return;
             }
 
-            string datasetPath = Path.GetDirectoryName(yamlPath);
-            if (string.IsNullOrEmpty(datasetPath))
+            // Read dataset root path from the 'path:' field in the YAML
+            string datasetPath = null;
+            try
             {
-                System.Windows.MessageBox.Show("Could not determine dataset directory from YAML file.", "Invalid Path",
+                string yamlContent = File.ReadAllText(yamlPath);
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(UnderscoredNamingConvention.Instance)
+                    .Build();
+                var yamlData = deserializer.Deserialize<Dictionary<string, object>>(yamlContent);
+                if (yamlData.ContainsKey("path"))
+                    datasetPath = yamlData["path"]?.ToString();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to parse YAML file: {ex.Message}", "YAML Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(datasetPath) || !Directory.Exists(datasetPath))
+            {
+                System.Windows.MessageBox.Show("The 'path' field in the YAML file is missing or points to a directory that does not exist.", "Invalid Path",
                     MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
