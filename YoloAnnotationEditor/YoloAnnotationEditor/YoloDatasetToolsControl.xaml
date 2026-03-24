@@ -820,6 +820,55 @@
             </ScrollViewer>
         </TabItem>
 
+        <!-- Create Missing Labels Tab -->
+        <TabItem Header="Create Missing Labels">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="20">
+                    <TextBlock Text="Create Missing Label Files" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                    <TextBlock Text="Scans the train/val/test splits and creates an empty .txt label file for every image that is missing one."
+                               TextWrapping="Wrap" Margin="0,0,0,20"/>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Label Grid.Row="0" Grid.Column="0" Content="Dataset YAML File:"/>
+                        <TextBox Grid.Row="0" Grid.Column="1" Name="txtCreateMissingLabelsInput" IsReadOnly="True"/>
+                        <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseCreateMissingLabels" Content="Browse..." Click="BrowseCreateMissingLabels_Click"/>
+
+                        <GroupBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Header="Options" Margin="0,10,0,0">
+                            <StackPanel>
+                                <CheckBox Name="chkCreateMissingLabelsTrain" Content="Include train split" IsChecked="True" Margin="0,5"/>
+                                <CheckBox Name="chkCreateMissingLabelsVal" Content="Include val split" IsChecked="True" Margin="0,5"/>
+                                <CheckBox Name="chkCreateMissingLabelsTest" Content="Include test split" IsChecked="True" Margin="0,5"/>
+
+                                <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                    <Button Name="btnCreateMissingLabels" Content="Create Missing Label Files" Click="CreateMissingLabels_Click"
+                                            MinWidth="200" Padding="10,5"/>
+                                </StackPanel>
+
+                                <StackPanel Margin="0,15,0,0">
+                                    <Label Content="Status:"/>
+                                    <TextBox Name="txtCreateMissingLabelsStatus" IsReadOnly="True" Background="LightGray"/>
+                                    <ProgressBar Name="pbCreateMissingLabelsProgress" Height="20" Margin="0,5,0,0" Minimum="0" Maximum="100"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </GroupBox>
+                    </Grid>
+
+                    <TextBox Name="txtCreateMissingLabelsLog" Height="200" Margin="0,20,0,0" IsReadOnly="True"
+                             VerticalScrollBarVisibility="Auto" TextWrapping="Wrap"/>
+                </StackPanel>
+            </ScrollViewer>
+        </TabItem>
+
         <!-- Decimal Separator Tab -->
         <TabItem Header="Decimal Separator">
             <ScrollViewer VerticalScrollBarVisibility="Auto">
