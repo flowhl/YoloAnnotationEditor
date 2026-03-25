@@ -1801,6 +1801,133 @@ namespace YoloAnnotationEditor
         }
 
 
+        private async void BtnBatchRedetect_Click(object sender, RoutedEventArgs e)
+        {
+            if (_yolo == null)
+            {
+                MessageBox.Show("Please load a YOLO model first.", "YOLO Model Required",
+                               MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            if (_allImages.Count == 0)
+            {
+                MessageBox.Show("Please load a dataset first.", "No Dataset",
+                               MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var result = MessageBox.Show(
+                $"This will clear ALL existing annotations and redetect using YOLO for all {_allImages.Count} images in the dataset.\n\nThis operation cannot be undone. Are you sure?",
+                "Confirm Batch Redetection", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result != MessageBoxResult.Yes)
+                return;
+
+            // Save any pending changes first
+            if (_isDirty && _currentImage != null)
+                SaveAnnotations();
+
+            BtnBatchRedetect.IsEnabled = false;
+            var stopwatch = Stopwatch.StartNew();
+            int totalClasses = 0;
+            int processedImages = 0;
+            int totalImages = _allImages.Count;
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    foreach (var imageItem in _allImages.ToList())
+                    {
+                        try
+                        {
+                            // Load image from disk as SKImage
+                            using var skImg = SKImage.FromEncodedData(imageItem.FilePath);
+                            if (skImg == null) continue;
+
+                            // Run detection
+                            var detections = _yolo.RunObjectDetection(skImg)
+                                .Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
+                                .ToList();
+
+                            // Clear existing annotations
+                            imageItem.Annotations.Clear();
+                            imageItem.ClassIds.Clear();
+
+                            // Add new detections
+                            foreach (var detection in detections)
+                            {
+                                if (detection?.Label == null) continue;
+                                if (!_classNames.ContainsKey(detection.Label.Index)) continue;
+                                if (_classNames[detection.Label.Index]?.ToLower().Trim() != detection.Label.Name?.ToLower().Trim()) continue;
+
+                                var bb = detection.BoundingBox;
+                                var newLabel = new YoloLabel
+                                {
+                                    ClassId = detection.Label.Index,
+                                    CenterX = (float)(bb.MidX / skImg.Width),
+                                    CenterY = (float)(bb.MidY / skImg.Height),
+                                    Width = (float)(bb.Width / skImg.Width),
+                                    Height = (float)(bb.Height / skImg.Height)
+                                };
+
+                                imageItem.Annotations.Add(newLabel);
+                                if (!imageItem.ClassIds.Contains(detection.Label.Index))
+                                    imageItem.ClassIds.Add(detection.Label.Index);
+                            }
+
+                            totalClasses += imageItem.Annotations.Count;
+
+                            // Save label file
+                            var lines = imageItem.Annotations.Select(label =>
+                                $"{label.ClassId} {label.CenterX.ToString("0.######")} {label.CenterY.ToString("0.######")} " +
+                                $"{label.Width.ToString("0.######")} {label.Height.ToString("0.######")}");
+                            File.WriteAllLines(imageItem.LabelPath, lines);
+
+                            processedImages++;
+
+                            // Update status on UI thread
+                            Dispatcher.Invoke(() =>
+                            {
+                                StatusText.Text = $"Batch redetecting... {processedImages}/{totalImages}";
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Trace.WriteLine($"Batch redetect error for {imageItem.FileName}: {ex.Message}");
+                        }
+                    }
+                });
+
+                stopwatch.Stop();
+
+                // Reload current image display if one is selected
+                if (_currentImage != null)
+                {
+                    var currentIndex = _allImages.IndexOf(_currentImage);
+                    if (currentIndex >= 0)
+                    {
+                        LvThumbnails.SelectedIndex = -1;
+                        LvThumbnails.SelectedIndex = currentIndex;
+                    }
+                }
+
+                UpdateStatistics();
+                StatusText.Text = "Batch redetection complete";
+                Notify.sendSuccess($"Redetected {totalClasses} classes over {processedImages} images in {stopwatch.Elapsed.TotalSeconds:F1} seconds");
+            }
+            catch (Exception ex)
+            {
+                Notify.sendError($"Batch redetection failed: {ex.Message}");
+                StatusText.Text = "Batch redetection failed";
+            }
+            finally
+            {
+                BtnBatchRedetect.IsEnabled = true;
+            }
+        }
+
         #endregion
 
         #region Decimal Separator Helper Methods
