@@ -1863,13 +1863,15 @@ namespace YoloAnnotationEditor
                                 if (_classNames[detection.Label.Index]?.ToLower().Trim() != detection.Label.Name?.ToLower().Trim()) continue;
 
                                 var bb = detection.BoundingBox;
+                                double imgW = skImg.Width;
+                                double imgH = skImg.Height;
                                 var newLabel = new YoloLabel
                                 {
                                     ClassId = detection.Label.Index,
-                                    CenterX = (float)(bb.MidX / skImg.Width),
-                                    CenterY = (float)(bb.MidY / skImg.Height),
-                                    Width = (float)(bb.Width / skImg.Width),
-                                    Height = (float)(bb.Height / skImg.Height)
+                                    CenterX = (float)(bb.MidX / imgW),
+                                    CenterY = (float)(bb.MidY / imgH),
+                                    Width = (float)(bb.Width / imgW),
+                                    Height = (float)(bb.Height / imgH)
                                 };
 
                                 imageItem.Annotations.Add(newLabel);
