@@ -669,6 +669,7 @@ namespace YoloAnnotationEditor
 
         private void UpdatePreview()
         {
+            if (PreviewBorder == null) return;
             if (_operation == BatchOperation.Delete)
             {
                 PreviewBorder.Visibility = Visibility.Collapsed;
