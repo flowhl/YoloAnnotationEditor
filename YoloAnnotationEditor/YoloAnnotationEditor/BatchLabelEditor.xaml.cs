@@ -256,6 +256,42 @@ namespace YoloAnnotationEditor
 
         #region Step 1: Image Selection
 
+        private int _lastClickedImageIndex = -1;
+
+        private void LvImages_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            var listViewItem = GetListViewItemFromElement(e.OriginalSource as DependencyObject);
+            if (listViewItem == null) return;
+
+            var clickedItem = listViewItem.DataContext as BatchImageItem;
+            if (clickedItem == null) return;
+
+            var currentItems = GetFilteredImages().ToList();
+            int clickedIndex = currentItems.IndexOf(clickedItem);
+            if (clickedIndex < 0) return;
+
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0 && _lastClickedImageIndex >= 0)
+            {
+                bool targetState = !clickedItem.IsSelected;
+                int start = Math.Min(_lastClickedImageIndex, clickedIndex);
+                int end = Math.Max(_lastClickedImageIndex, clickedIndex);
+
+                for (int i = start; i <= end; i++)
+                    currentItems[i].IsSelected = targetState;
+
+                e.Handled = true;
+            }
+
+            _lastClickedImageIndex = clickedIndex;
+        }
+
+        private static ListViewItem GetListViewItemFromElement(DependencyObject element)
+        {
+            while (element != null && element is not ListViewItem)
+                element = VisualTreeHelper.GetParent(element);
+            return element as ListViewItem;
+        }
+
         private void BtnSelectAll_Click(object sender, RoutedEventArgs e)
         {
             foreach (var item in GetFilteredImages())
@@ -279,6 +315,7 @@ namespace YoloAnnotationEditor
 
         private void TxtImageFilter_TextChanged(object sender, TextChangedEventArgs e)
         {
+            _lastClickedImageIndex = -1;
             string filter = TxtImageFilter.Text?.ToLowerInvariant() ?? "";
             if (string.IsNullOrEmpty(filter))
             {
