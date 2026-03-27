@@ -1,5 +1,5 @@
 # YOLO Annotation Editor
-A comprehensive WPF application for **annotating images**, **editing YAML configurations**, **previewing YOLO object detection**, and **OCR dataset management** - the complete toolkit for managing YOLO format datasets and OCR training data. Designed for YOLO v11 Datasets with extensive OCR capabilities.
+A comprehensive WPF application serving two equally important workflows: **YOLO object detection dataset management** and **PaddleOCR text recognition dataset management**. Covers the full pipeline from raw images to training-ready data — annotation, dataset manipulation, quality control, and live inference — for both YOLO v11 and PaddleOCR models.
 
 ![image](https://github.com/user-attachments/assets/49975b66-5f5b-4190-b599-1f1444a097aa)
 ![image](https://github.com/user-attachments/assets/59f38549-7757-459a-8233-4f9182b9d47a)
@@ -32,26 +32,27 @@ A comprehensive WPF application for **annotating images**, **editing YAML config
 - **Model Flexibility**: Load custom ONNX models with automatic fallback from CUDA to CPU
 - **Detection Control**: Toggle detection on/off and control capture settings
 
-### PaddleOCR
-- **Multiple OCR Models**: Support for English V3/V4, Chinese V5, and custom trained models
-- **Image Processing**: Load images and run OCR detection with confidence scoring
-- **Model Management**: Easy switching between different OCR model versions
-- **Results Display**: View OCR results with processing time and confidence metrics
+### PaddleOCR Runner
+- **Multiple Built-in Models**: English V3, English V4, and Chinese V5 via one-click load
+- **Custom Local Models**: Load your own trained PaddleOCR model by pointing to separate detection and recognition model directories (V5 format)
+- **Per-region Results**: Displays each detected text region with its confidence score
+- **Performance Metrics**: Shows total inference time in milliseconds
+- **Image Display**: Renders the loaded image alongside results for quick visual verification
 
 ### OCR Annotation
-- **Text Annotation Interface**: Dedicated tool for creating and managing text labels for images
-- **Automatic OCR Detection**: Generate text annotations using integrated PaddleOCR
-- **Dataset Organization**: Automatic file conversion (PNG to JPG) and sequential renaming
-- **Progress Tracking**: Visual indicators for labeled vs unlabeled images with progress counters
-- **Navigation Controls**: Easy navigation through image datasets with Previous/Next functionality
+- **Text Annotation Interface**: Dedicated tool for labeling image crops with their text content, producing a `labels.txt` file in PaddleOCR format (`filename text`)
+- **Automatic OCR Detection**: One-click OCR on the current image using the loaded PaddleOCR model to pre-fill the text label
+- **Dataset Preparation**: On folder load, offers to convert PNG files to JPG and rename all files to sequential numeric names (`0.jpg`, `1.jpg`, …) — the format expected by PaddleOCR training pipelines
+- **Auto-save**: Labels are saved automatically on every navigation change and on application close
+- **Progress Tracking**: Per-image labeled/unlabeled indicator (green check / red warning) and a running `Labeled: N/Total` counter
+- **Navigation**: Previous/Next buttons with current position display
 
 ### OCR Dataset Tools
-- **TRDG to PaddleOCR Conversion**: Convert Text Recognition Data Generator datasets to PaddleOCR training format with configurable train/validation splits
-- **Dataset Merging**: Merge multiple datasets with flexible scaling options (fixed height, variable height, or no scaling) and quality control
-- **Character Set Generation**: Generate character dictionaries from existing datasets with frequency analysis
-- **Dataset Analysis**: Comprehensive analysis tools including character frequency, label length statistics, and dictionary comparison with AI-powered recommendations
-- **Auto-Discovery**: Automatically find and process datasets in directory structures
-- **Batch Processing**: Handle large datasets efficiently with progress tracking and logging
+- **TRDG to PaddleOCR Conversion**: Convert Text Recognition Data Generator output (`labels.txt` + images) to PaddleOCR training format (`rec_gt_train.txt` / `rec_gt_val.txt` + split image folders) with a configurable train/val ratio slider
+- **Dataset Merging**: Merge any number of PaddleOCR datasets into one; choose image scaling mode — fixed height (aspect-ratio preserved), variable height (random within a min/max range), or no scaling — with configurable JPEG quality and optional random seed; outputs sequentially numbered images and a merged `labels.txt`
+- **Auto-Discovery**: Scan a root directory (up to 3 levels deep) to automatically find all folders that contain a `labels.txt` and at least one image, and queue them for merging
+- **Character Set Generation**: Scan a dataset's labels to extract every unique character and write a one-character-per-line dictionary file; shows a breakdown of letters, digits, punctuation, and spaces
+- **Dataset Analysis**: Total samples, unique characters, avg/min/max label length, per-character frequency table with percentage and dictionary coverage flag, dictionary comparison (characters in dataset missing from dict and vice versa), and training recommendations based on dataset size, character set breadth, and dictionary alignment
 
 ### YOLO Dataset Tools
 - **Merge Datasets**: Combine multiple YOLO datasets into one, merging class maps and resolving filename conflicts automatically; outputs a ready-to-use `dataset.yaml`
@@ -132,10 +133,10 @@ The application uses Velopack for easy installation and automatic updates.
 
 ### OCR Dataset Tools
 1. Navigate to the OCR Dataset Tools tab
-2. **Convert TRDG to PaddleOCR**: Convert datasets with configurable train/val splits
-3. **Merge Datasets**: Combine multiple datasets with flexible scaling options
-4. **Generate Character Set**: Create character dictionaries from existing datasets
-5. **Analyze Dataset**: Get comprehensive statistics and recommendations for dataset improvement
+2. **Convert TRDG to PaddleOCR**: Select the TRDG directory and an output directory, set the train/val split ratio, and convert
+3. **Merge Datasets**: Add dataset folders manually or use Auto-Discover; pick a scaling mode and quality; merge into a single numbered dataset
+4. **Generate Character Set**: Select a dataset folder and an output `.txt` path; the tool writes one character per line and previews the full set
+5. **Analyze Dataset**: Select a dataset folder, optionally load a dictionary file for comparison, and run the analysis to review statistics and recommendations
 
 ### YOLO Dataset Tools
 1. Navigate to the YOLO Dataset Tools tab
