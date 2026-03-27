@@ -285,11 +285,11 @@ namespace YoloAnnotationEditor
             _lastClickedImageIndex = clickedIndex;
         }
 
-        private static ListViewItem GetListViewItemFromElement(DependencyObject element)
+        private static System.Windows.Controls.ListViewItem GetListViewItemFromElement(DependencyObject element)
         {
-            while (element != null && element is not ListViewItem)
+            while (element != null && element is not System.Windows.Controls.ListViewItem)
                 element = VisualTreeHelper.GetParent(element);
-            return element as ListViewItem;
+            return element as System.Windows.Controls.ListViewItem;
         }
 
         private void BtnSelectAll_Click(object sender, RoutedEventArgs e)
