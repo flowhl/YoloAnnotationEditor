@@ -22,6 +22,7 @@ using Rectangle = System.Windows.Shapes.Rectangle;
 namespace YoloAnnotationEditor
 {
     public enum BatchOperation { Replace, Add, Delete }
+    public enum OverlapMode { AlwaysAdd, SkipIfNearby, DeleteNearbyThenAdd }
 
     public class BatchImageItem : INotifyPropertyChanged
     {
@@ -76,6 +77,10 @@ namespace YoloAnnotationEditor
         private double _regionRight;
         private double _regionBottom;
         private bool _hasRegion;
+
+        // Reference image dimensions (used for pixel-distance calculations)
+        private int _refImageWidth = 1920;
+        private int _refImageHeight = 1080;
 
         // Selected class (Replace / Add)
         private ClassItem _selectedClass;
@@ -138,6 +143,36 @@ namespace YoloAnnotationEditor
             else if (RbDelete?.IsChecked == true) _operation = BatchOperation.Delete;
 
             UpdateOperationHint();
+        }
+
+        private void OverlapMode_Changed(object sender, RoutedEventArgs e)
+        {
+            UpdatePreview();
+        }
+
+        private OverlapMode GetCurrentOverlapMode()
+        {
+            if (RbAlwaysAdd?.IsChecked == true) return OverlapMode.AlwaysAdd;
+            if (RbDeleteNearbyThenAdd?.IsChecked == true) return OverlapMode.DeleteNearbyThenAdd;
+            return OverlapMode.SkipIfNearby; // default
+        }
+
+        private double GetProximityPx()
+        {
+            var box = GetCurrentOverlapMode() == OverlapMode.DeleteNearbyThenAdd ? TxtDeleteDistance : TxtSkipDistance;
+            if (double.TryParse(box?.Text, out double px) && px > 0) return px;
+            return 50; // fallback
+        }
+
+        private string DescribeOverlapMode()
+        {
+            return GetCurrentOverlapMode() switch
+            {
+                OverlapMode.AlwaysAdd => "always add (don't delete anything)",
+                OverlapMode.SkipIfNearby => $"skip if an existing label is within {GetProximityPx():F0} px",
+                OverlapMode.DeleteNearbyThenAdd => $"delete labels within {GetProximityPx():F0} px, then add",
+                _ => ""
+            };
         }
 
         private void UpdateOperationHint()
@@ -421,6 +456,9 @@ namespace YoloAnnotationEditor
                 image.UriSource = new Uri(item.FilePath);
                 image.EndInit();
 
+                _refImageWidth = image.PixelWidth;
+                _refImageHeight = image.PixelHeight;
+
                 ReferenceImage.Source = image;
                 DrawingCanvas.Width = image.PixelWidth;
                 DrawingCanvas.Height = image.PixelHeight;
@@ -652,9 +690,9 @@ namespace YoloAnnotationEditor
                     $"to class \"{_selectedClass.Name}\" (ID: {_selectedClass.ClassId}).\n" +
                     $"Region: ({_regionLeft:P1}, {_regionTop:P1}) → ({_regionRight:P1}, {_regionBottom:P1})",
                 BatchOperation.Add =>
-                    $"Will add a \"{_selectedClass.Name}\" (ID: {_selectedClass.ClassId}) label to images " +
-                    $"that have NO label in the region ({selectedImageCount} image(s) selected, " +
-                    $"{labelCount} already have a label there).\n" +
+                    $"Will add a \"{_selectedClass.Name}\" (ID: {_selectedClass.ClassId}) label to images in the selected set.\n" +
+                    $"Overlap: {DescribeOverlapMode()}.\n" +
+                    $"{selectedImageCount} image(s) selected, {labelCount} already have a label in the region.\n" +
                     $"Region: ({_regionLeft:P1}, {_regionTop:P1}) → ({_regionRight:P1}, {_regionBottom:P1})",
                 _ => ""
             };
@@ -686,9 +724,9 @@ namespace YoloAnnotationEditor
                     $"to class \"{_selectedClass.Name}\" (ID: {_selectedClass.ClassId}).\n\n" +
                     $"Region (normalized): X=[{_regionLeft:F4}, {_regionRight:F4}], Y=[{_regionTop:F4}, {_regionBottom:F4}]",
                 BatchOperation.Add =>
-                    $"Will add a \"{_selectedClass.Name}\" (ID: {_selectedClass.ClassId}) label to images " +
-                    $"in the selected set that have no label in the region.\n" +
-                    $"Overlap handling: {(RbOverlapSkip.IsChecked == true ? "skip images that already have a label" : "delete existing label(s) and add new one")}.\n\n" +
+                    $"Will add a \"{_selectedClass.Name}\" (ID: {_selectedClass.ClassId}) label to images in the selected set.\n" +
+                    $"Overlap: {DescribeOverlapMode()}.\n" +
+                    $"Reference image dimensions: {_refImageWidth}×{_refImageHeight} px.\n\n" +
                     $"Region (normalized): X=[{_regionLeft:F4}, {_regionRight:F4}], Y=[{_regionTop:F4}, {_regionBottom:F4}]",
                 BatchOperation.Delete =>
                     $"Will delete {labelCount} label(s) from {selectedImageCount} selected image(s).\n\n" +
@@ -734,7 +772,8 @@ namespace YoloAnnotationEditor
             _totalLabelsAffected = 0;
             _totalFilesModified = 0;
 
-            bool overlapDelete = RbOverlapDelete?.IsChecked == true;
+            var overlapMode = GetCurrentOverlapMode();
+            double proximityPx = GetProximityPx();
 
             foreach (var img in selectedImages)
             {
@@ -753,7 +792,7 @@ namespace YoloAnnotationEditor
                     int changed = _operation switch
                     {
                         BatchOperation.Replace => await Task.Run(() => ProcessReplace(img)),
-                        BatchOperation.Add => await Task.Run(() => ProcessAdd(img, overlapDelete)),
+                        BatchOperation.Add => await Task.Run(() => ProcessAdd(img, overlapMode, proximityPx)),
                         BatchOperation.Delete => await Task.Run(() => ProcessDelete(img)),
                         _ => 0
                     };
@@ -761,12 +800,18 @@ namespace YoloAnnotationEditor
                     string outcome = _operation switch
                     {
                         BatchOperation.Replace => changed > 0 ? $"changed {changed} label(s)" : "no labels in region",
-                        BatchOperation.Add => changed == 1 ? "added 1 label" : (changed == -1 ? "skipped (overlap)" : "no change"),
+                        BatchOperation.Add => changed switch
+                        {
+                            1 => "added 1 label",
+                            -1 => "skipped (nearby label found)",
+                            -2 => $"deleted nearby label(s) and added new one",
+                            _ => "no change"
+                        },
                         BatchOperation.Delete => changed > 0 ? $"deleted {changed} label(s)" : "no labels in region",
                         _ => ""
                     };
 
-                    if (changed > 0) { _totalLabelsAffected += Math.Abs(changed); _totalFilesModified++; }
+                    if (changed != 0 && changed != -1) { _totalLabelsAffected++; _totalFilesModified++; }
 
                     await Dispatcher.InvokeAsync(() => AppendLog($"  {img.FileName}: {outcome}"));
                 }
@@ -837,54 +882,68 @@ namespace YoloAnnotationEditor
             return changed;
         }
 
-        // Returns 1 = added, -1 = skipped (overlap), 0 = nothing to do
-        private int ProcessAdd(BatchImageItem img, bool deleteOnOverlap)
+        // Returns: 1 = added, -1 = skipped (nearby label), -2 = deleted nearby + added, 0 = no change
+        private int ProcessAdd(BatchImageItem img, OverlapMode mode, double proximityPx)
         {
             var lines = File.Exists(img.LabelPath)
                 ? File.ReadAllLines(img.LabelPath).ToList()
                 : new List<string>();
 
-            var existingLabels = lines
-                .Where(l => !string.IsNullOrWhiteSpace(l))
-                .Select(l => ParseYoloLabel(l))
-                .Where(l => l != null)
-                .ToList();
+            float newCx = (float)((_regionLeft + _regionRight) / 2.0);
+            float newCy = (float)((_regionTop + _regionBottom) / 2.0);
 
-            bool hasOverlap = existingLabels.Any(IsLabelInRegion);
-
-            if (hasOverlap && !deleteOnOverlap)
-                return -1; // skip
-
-            var newLines = new List<string>();
-            if (hasOverlap && deleteOnOverlap)
-            {
-                // Remove overlapping labels
-                foreach (var line in lines)
-                {
-                    if (string.IsNullOrWhiteSpace(line)) { newLines.Add(line); continue; }
-                    var label = ParseYoloLabel(line);
-                    if (label != null && IsLabelInRegion(label)) continue; // delete it
-                    newLines.Add(line);
-                }
-            }
-            else
-            {
-                newLines.AddRange(lines);
-            }
-
-            // Add the new label using the region as the bounding box
             var newLabel = new YoloLabel
             {
                 ClassId = _selectedClass.ClassId,
-                CenterX = (float)((_regionLeft + _regionRight) / 2.0),
-                CenterY = (float)((_regionTop + _regionBottom) / 2.0),
+                CenterX = newCx,
+                CenterY = newCy,
                 Width = (float)(_regionRight - _regionLeft),
                 Height = (float)(_regionBottom - _regionTop)
             };
-            newLines.Add(FormatYoloLabel(newLabel));
 
+            if (mode == OverlapMode.AlwaysAdd)
+            {
+                lines.Add(FormatYoloLabel(newLabel));
+                File.WriteAllLines(img.LabelPath, lines);
+                return 1;
+            }
+
+            // Build list of lines with their parsed labels (paired to avoid re-parsing)
+            var parsed = lines.Select(l => (line: l, label: string.IsNullOrWhiteSpace(l) ? null : ParseYoloLabel(l))).ToList();
+
+            bool foundNearby = parsed.Any(p => p.label != null &&
+                GetPixelDistance(p.label.CenterX, p.label.CenterY, newCx, newCy) <= proximityPx);
+
+            if (mode == OverlapMode.SkipIfNearby)
+            {
+                if (foundNearby) return -1;
+                lines.Add(FormatYoloLabel(newLabel));
+                File.WriteAllLines(img.LabelPath, lines);
+                return 1;
+            }
+
+            // DeleteNearbyThenAdd
+            int deletedCount = 0;
+            var newLines = new List<string>();
+            foreach (var (line, label) in parsed)
+            {
+                if (label != null && GetPixelDistance(label.CenterX, label.CenterY, newCx, newCy) <= proximityPx)
+                {
+                    deletedCount++;
+                    continue; // remove it
+                }
+                newLines.Add(line);
+            }
+            newLines.Add(FormatYoloLabel(newLabel));
             File.WriteAllLines(img.LabelPath, newLines);
-            return 1;
+            return deletedCount > 0 ? -2 : 1;
+        }
+
+        private double GetPixelDistance(double cx1, double cy1, double cx2, double cy2)
+        {
+            double dx = (cx1 - cx2) * _refImageWidth;
+            double dy = (cy1 - cy2) * _refImageHeight;
+            return Math.Sqrt(dx * dx + dy * dy);
         }
 
         // Returns number of labels deleted

@@ -227,16 +227,37 @@
                         CornerRadius="4" Padding="12" Margin="0,12,0,0"
                         Visibility="Collapsed">
                     <StackPanel>
-                        <TextBlock Text="If a label already exists in the region for an image:"
-                                   FontWeight="SemiBold" Margin="0,0,0,8"/>
-                        <RadioButton x:Name="RbOverlapSkip"
-                                     Content="Skip that image (leave it unchanged)"
-                                     GroupName="OverlapMode" IsChecked="True"
-                                     FontSize="13" Margin="0,0,0,6"/>
-                        <RadioButton x:Name="RbOverlapDelete"
-                                     Content="Delete existing label(s) in region and add new one"
-                                     GroupName="OverlapMode"
-                                     FontSize="13"/>
+                        <TextBlock Text="How to handle images that already have a nearby label:"
+                                   FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                        <RadioButton x:Name="RbAlwaysAdd"
+                                     Content="Always add the new label (don't delete anything)"
+                                     GroupName="OverlapMode" FontSize="13" Margin="0,0,0,8"
+                                     Checked="OverlapMode_Changed"/>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <RadioButton x:Name="RbSkipIfNearby"
+                                         Content="Skip if an existing label is within "
+                                         GroupName="OverlapMode" FontSize="13" IsChecked="True"
+                                         VerticalAlignment="Center" Checked="OverlapMode_Changed"/>
+                            <TextBox x:Name="TxtSkipDistance" Width="55" Text="50"
+                                     VerticalAlignment="Center" Padding="3,2" Margin="0,0,0,0"/>
+                            <TextBlock Text=" px of the new label" VerticalAlignment="Center" FontSize="13"/>
+                        </StackPanel>
+
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                            <RadioButton x:Name="RbDeleteNearbyThenAdd"
+                                         Content="Delete existing labels within "
+                                         GroupName="OverlapMode" FontSize="13"
+                                         VerticalAlignment="Center" Checked="OverlapMode_Changed"/>
+                            <TextBox x:Name="TxtDeleteDistance" Width="55" Text="50"
+                                     VerticalAlignment="Center" Padding="3,2" Margin="0,0,0,0"/>
+                            <TextBlock Text=" px, then add" VerticalAlignment="Center" FontSize="13"/>
+                        </StackPanel>
+
+                        <TextBlock x:Name="TxtProximityNote"
+                                   Text="Pixel distance is measured using the reference image dimensions."
+                                   FontSize="11" Foreground="Gray" Margin="0,10,0,0" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
 
