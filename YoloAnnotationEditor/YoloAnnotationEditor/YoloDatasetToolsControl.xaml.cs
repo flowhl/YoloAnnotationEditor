@@ -2431,21 +2431,17 @@ namespace YoloAnnotationEditor
         // Rename to UIDs
         private void BrowseRenameUid_Click(object sender, RoutedEventArgs e)
         {
-            using (var dialog = new FolderBrowserDialog())
+            OpenFileDialog openFileDialog = new OpenFileDialog
             {
-                dialog.Description = "Select dataset root directory (containing images/ and labels/)";
-                if (dialog.ShowDialog() == DialogResult.OK)
-                {
-                    if (ValidateYoloDataset(dialog.SelectedPath))
-                    {
-                        txtRenameUidInput.Text = dialog.SelectedPath;
-                    }
-                    else
-                    {
-                        System.Windows.MessageBox.Show("Invalid YOLO dataset structure. Expected images/ and labels/ subdirectories.",
-                            "Invalid Dataset", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
+                Filter = "YAML files (*.yaml, *.yml)|*.yaml;*.yml|All files (*.*)|*.*",
+                Title = "Select YOLO Dataset YAML File"
+            };
+
+            openFileDialog.ShowDialog();
+
+            if (!string.IsNullOrEmpty(openFileDialog.FileName))
+            {
+                txtRenameUidInput.Text = openFileDialog.FileName;
             }
         }
 
@@ -2453,16 +2449,51 @@ namespace YoloAnnotationEditor
         {
             if (string.IsNullOrEmpty(txtRenameUidInput.Text))
             {
-                System.Windows.MessageBox.Show("Please select a dataset directory.", "Missing Path",
+                System.Windows.MessageBox.Show("Please select a dataset YAML file.", "Missing Input",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
+            string yamlPath = txtRenameUidInput.Text;
+            if (!File.Exists(yamlPath))
+            {
+                System.Windows.MessageBox.Show("The selected YAML file does not exist.", "Invalid File",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            string datasetPath = null;
+            try
+            {
+                string yamlContent = File.ReadAllText(yamlPath);
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(UnderscoredNamingConvention.Instance)
+                    .Build();
+                var yamlData = deserializer.Deserialize<Dictionary<string, object>>(yamlContent);
+                if (yamlData.ContainsKey("path"))
+                    datasetPath = yamlData["path"]?.ToString();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to parse YAML file: {ex.Message}", "YAML Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(datasetPath) || !Directory.Exists(datasetPath))
+            {
+                System.Windows.MessageBox.Show("The 'path' field in the YAML file is missing or points to a directory that does not exist.",
+                    "Invalid Path", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
             btnRenameToUids.IsEnabled = false;
+            btnBrowseRenameUid.IsEnabled = false;
 
             try
             {
-                await Task.Run(() => RenameImagesToUids());
+                string path = datasetPath;
+                await Task.Run(() => RenameImagesToUids(path));
             }
             catch (Exception ex)
             {
@@ -2473,13 +2504,12 @@ namespace YoloAnnotationEditor
             finally
             {
                 btnRenameToUids.IsEnabled = true;
+                btnBrowseRenameUid.IsEnabled = true;
             }
         }
 
-        private void RenameImagesToUids()
+        private void RenameImagesToUids(string datasetPath)
         {
-            string datasetPath = "";
-            Dispatcher.Invoke(() => datasetPath = txtRenameUidInput.Text);
 
             var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".bmp", ".webp" };
             string[] splits = { "train", "val", "test" };
