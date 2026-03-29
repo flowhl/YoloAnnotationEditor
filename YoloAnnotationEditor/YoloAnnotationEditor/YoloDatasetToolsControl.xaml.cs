@@ -2428,6 +2428,100 @@ namespace YoloAnnotationEditor
             }
         }
 
+        // Rename to UIDs
+        private void BrowseRenameUid_Click(object sender, RoutedEventArgs e)
+        {
+            using (var dialog = new FolderBrowserDialog())
+            {
+                dialog.Description = "Select directory containing images and labels";
+                if (dialog.ShowDialog() == DialogResult.OK)
+                {
+                    txtRenameUidInput.Text = dialog.SelectedPath;
+                }
+            }
+        }
+
+        private async void RenameToUids_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtRenameUidInput.Text))
+            {
+                System.Windows.MessageBox.Show("Please select a directory.", "Missing Path",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            btnRenameToUids.IsEnabled = false;
+
+            try
+            {
+                await Task.Run(() => RenameImagesToUids());
+            }
+            catch (Exception ex)
+            {
+                LogUtilitiesMessage($"Error: {ex.Message}");
+                System.Windows.MessageBox.Show($"Error: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnRenameToUids.IsEnabled = true;
+            }
+        }
+
+        private void RenameImagesToUids()
+        {
+            string folder = "";
+            Dispatcher.Invoke(() => folder = txtRenameUidInput.Text);
+
+            string[] imageExtensions = { ".jpg", ".jpeg", ".png" };
+
+            string[] imageFiles = Directory.GetFiles(folder, "*.*")
+                .Where(f => imageExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
+                .ToArray();
+
+            if (imageFiles.Length == 0)
+            {
+                LogUtilitiesMessage("No image files found in the selected directory.");
+                return;
+            }
+
+            LogUtilitiesMessage($"Found {imageFiles.Length} image(s). Renaming...");
+
+            int renamed = 0;
+            int skipped = 0;
+
+            foreach (var imagePath in imageFiles)
+            {
+                string dir = Path.GetDirectoryName(imagePath);
+                string imageExt = Path.GetExtension(imagePath);
+                string oldBaseName = Path.GetFileNameWithoutExtension(imagePath);
+                string newBaseName = Guid.NewGuid().ToString();
+                string newImagePath = Path.Combine(dir, newBaseName + imageExt);
+
+                if (File.Exists(newImagePath))
+                {
+                    LogUtilitiesMessage($"Skipped (collision): {Path.GetFileName(imagePath)}");
+                    skipped++;
+                    continue;
+                }
+
+                File.Move(imagePath, newImagePath);
+
+                // Rename matching label file if it exists
+                string labelPath = Path.Combine(dir, oldBaseName + ".txt");
+                if (File.Exists(labelPath))
+                {
+                    string newLabelPath = Path.Combine(dir, newBaseName + ".txt");
+                    File.Move(labelPath, newLabelPath);
+                }
+
+                renamed++;
+                LogUtilitiesMessage($"Renamed: {oldBaseName}{imageExt} -> {newBaseName}{imageExt}");
+            }
+
+            LogUtilitiesMessage($"Done. Renamed: {renamed}, Skipped: {skipped}.");
+        }
+
         private void LogUtilitiesMessage(string message)
         {
             Dispatcher.Invoke(() =>

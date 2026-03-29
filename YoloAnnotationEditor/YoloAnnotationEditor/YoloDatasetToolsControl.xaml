@@ -790,6 +790,28 @@
                         </Grid>
                     </GroupBox>
 
+                    <!-- Rename to UIDs -->
+                    <GroupBox Header="Rename Images &amp; Labels to UIDs" Margin="0,10,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Label Grid.Row="0" Grid.Column="0" Content="Directory:"/>
+                            <TextBox Grid.Row="0" Grid.Column="1" Name="txtRenameUidInput" IsReadOnly="True"/>
+                            <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseRenameUid" Content="Browse..." Click="BrowseRenameUid_Click"/>
+
+                            <Button Grid.Row="1" Grid.Column="1" Name="btnRenameToUids" Content="Rename to UIDs" Click="RenameToUids_Click"
+                                    HorizontalAlignment="Left" Margin="0,10,0,0"/>
+                        </Grid>
+                    </GroupBox>
+
                     <!-- Dataset Deduplication -->
                     <GroupBox Header="Dataset Deduplication" Margin="0,10,0,10">
                         <Grid>
