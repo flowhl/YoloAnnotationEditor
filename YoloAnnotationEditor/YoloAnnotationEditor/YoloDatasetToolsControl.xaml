@@ -803,7 +803,7 @@
                                 <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
-                            <Label Grid.Row="0" Grid.Column="0" Content="Directory:"/>
+                            <Label Grid.Row="0" Grid.Column="0" Content="Dataset Directory:"/>
                             <TextBox Grid.Row="0" Grid.Column="1" Name="txtRenameUidInput" IsReadOnly="True"/>
                             <Button Grid.Row="0" Grid.Column="2" Name="btnBrowseRenameUid" Content="Browse..." Click="BrowseRenameUid_Click"/>
 

@@ -2433,10 +2433,18 @@ namespace YoloAnnotationEditor
         {
             using (var dialog = new FolderBrowserDialog())
             {
-                dialog.Description = "Select directory containing images and labels";
+                dialog.Description = "Select dataset root directory (containing images/ and labels/)";
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
-                    txtRenameUidInput.Text = dialog.SelectedPath;
+                    if (ValidateYoloDataset(dialog.SelectedPath))
+                    {
+                        txtRenameUidInput.Text = dialog.SelectedPath;
+                    }
+                    else
+                    {
+                        System.Windows.MessageBox.Show("Invalid YOLO dataset structure. Expected images/ and labels/ subdirectories.",
+                            "Invalid Dataset", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
                 }
             }
         }
@@ -2445,7 +2453,7 @@ namespace YoloAnnotationEditor
         {
             if (string.IsNullOrEmpty(txtRenameUidInput.Text))
             {
-                System.Windows.MessageBox.Show("Please select a directory.", "Missing Path",
+                System.Windows.MessageBox.Show("Please select a dataset directory.", "Missing Path",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -2470,56 +2478,66 @@ namespace YoloAnnotationEditor
 
         private void RenameImagesToUids()
         {
-            string folder = "";
-            Dispatcher.Invoke(() => folder = txtRenameUidInput.Text);
+            string datasetPath = "";
+            Dispatcher.Invoke(() => datasetPath = txtRenameUidInput.Text);
 
-            string[] imageExtensions = { ".jpg", ".jpeg", ".png" };
+            var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".bmp", ".webp" };
+            string[] splits = { "train", "val", "test" };
 
-            string[] imageFiles = Directory.GetFiles(folder, "*.*")
-                .Where(f => imageExtensions.Contains(Path.GetExtension(f).ToLowerInvariant()))
-                .ToArray();
+            int totalRenamed = 0;
+            int totalSkipped = 0;
 
-            if (imageFiles.Length == 0)
+            foreach (var split in splits)
             {
-                LogUtilitiesMessage("No image files found in the selected directory.");
-                return;
-            }
+                string imagesDir = Path.Combine(datasetPath, "images", split);
+                string labelsDir = Path.Combine(datasetPath, "labels", split);
 
-            LogUtilitiesMessage($"Found {imageFiles.Length} image(s). Renaming...");
+                if (!Directory.Exists(imagesDir))
+                    continue;
 
-            int renamed = 0;
-            int skipped = 0;
+                string[] imageFiles = Directory.GetFiles(imagesDir)
+                    .Where(f => imageExtensions.Contains(Path.GetExtension(f)))
+                    .ToArray();
 
-            foreach (var imagePath in imageFiles)
-            {
-                string dir = Path.GetDirectoryName(imagePath);
-                string imageExt = Path.GetExtension(imagePath);
-                string oldBaseName = Path.GetFileNameWithoutExtension(imagePath);
-                string newBaseName = Guid.NewGuid().ToString();
-                string newImagePath = Path.Combine(dir, newBaseName + imageExt);
-
-                if (File.Exists(newImagePath))
+                if (imageFiles.Length == 0)
                 {
-                    LogUtilitiesMessage($"Skipped (collision): {Path.GetFileName(imagePath)}");
-                    skipped++;
+                    LogUtilitiesMessage($"[{split}] No images found, skipping.");
                     continue;
                 }
 
-                File.Move(imagePath, newImagePath);
+                LogUtilitiesMessage($"[{split}] Found {imageFiles.Length} image(s). Renaming...");
 
-                // Rename matching label file if it exists
-                string labelPath = Path.Combine(dir, oldBaseName + ".txt");
-                if (File.Exists(labelPath))
+                foreach (var imagePath in imageFiles)
                 {
-                    string newLabelPath = Path.Combine(dir, newBaseName + ".txt");
-                    File.Move(labelPath, newLabelPath);
+                    string imageExt = Path.GetExtension(imagePath);
+                    string oldBaseName = Path.GetFileNameWithoutExtension(imagePath);
+                    string newBaseName = Guid.NewGuid().ToString();
+                    string newImagePath = Path.Combine(imagesDir, newBaseName + imageExt);
+
+                    if (File.Exists(newImagePath))
+                    {
+                        LogUtilitiesMessage($"[{split}] Skipped (collision): {oldBaseName}{imageExt}");
+                        totalSkipped++;
+                        continue;
+                    }
+
+                    File.Move(imagePath, newImagePath);
+
+                    // Rename matching label file if it exists
+                    string labelPath = Path.Combine(labelsDir, oldBaseName + ".txt");
+                    if (File.Exists(labelPath))
+                    {
+                        string newLabelPath = Path.Combine(labelsDir, newBaseName + ".txt");
+                        File.Move(labelPath, newLabelPath);
+                    }
+
+                    totalRenamed++;
                 }
 
-                renamed++;
-                LogUtilitiesMessage($"Renamed: {oldBaseName}{imageExt} -> {newBaseName}{imageExt}");
+                LogUtilitiesMessage($"[{split}] Done. Renamed {imageFiles.Length - totalSkipped} image(s).");
             }
 
-            LogUtilitiesMessage($"Done. Renamed: {renamed}, Skipped: {skipped}.");
+            LogUtilitiesMessage($"Completed. Total renamed: {totalRenamed}, Total skipped: {totalSkipped}.");
         }
 
         private void LogUtilitiesMessage(string message)
