@@ -1283,16 +1283,19 @@ namespace YoloAnnotationEditor
                 // Get directories for train and val images
                 string trainImagesPath = Path.Combine(_datasetBasePath, "images", "train");
                 string valImagesPath = Path.Combine(_datasetBasePath, "images", "val");
+                string testImagesPath = Path.Combine(_datasetBasePath, "images", "test");
 
                 // Get corresponding label directories
                 string trainLabelsPath = Path.Combine(_datasetBasePath, "labels", "train");
                 string valLabelsPath = Path.Combine(_datasetBasePath, "labels", "val");
+                string testLabelsPath = Path.Combine(_datasetBasePath, "labels", "test");
 
                 // Define paths to process
                 var imageDirectories = new Dictionary<string, string>
         {
             { trainImagesPath, trainLabelsPath },
-            { valImagesPath, valLabelsPath }
+            { valImagesPath, valLabelsPath },
+            { testImagesPath, testLabelsPath  },
         };
 
                 // Check decimal separator in first 5 label files

@@ -2428,6 +2428,148 @@ namespace YoloAnnotationEditor
             }
         }
 
+        // Rename to UIDs
+        private void BrowseRenameUid_Click(object sender, RoutedEventArgs e)
+        {
+            OpenFileDialog openFileDialog = new OpenFileDialog
+            {
+                Filter = "YAML files (*.yaml, *.yml)|*.yaml;*.yml|All files (*.*)|*.*",
+                Title = "Select YOLO Dataset YAML File"
+            };
+
+            openFileDialog.ShowDialog();
+
+            if (!string.IsNullOrEmpty(openFileDialog.FileName))
+            {
+                txtRenameUidInput.Text = openFileDialog.FileName;
+            }
+        }
+
+        private async void RenameToUids_Click(object sender, RoutedEventArgs e)
+        {
+            if (string.IsNullOrEmpty(txtRenameUidInput.Text))
+            {
+                System.Windows.MessageBox.Show("Please select a dataset YAML file.", "Missing Input",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            string yamlPath = txtRenameUidInput.Text;
+            if (!File.Exists(yamlPath))
+            {
+                System.Windows.MessageBox.Show("The selected YAML file does not exist.", "Invalid File",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            string datasetPath = null;
+            try
+            {
+                string yamlContent = File.ReadAllText(yamlPath);
+                var deserializer = new DeserializerBuilder()
+                    .WithNamingConvention(UnderscoredNamingConvention.Instance)
+                    .Build();
+                var yamlData = deserializer.Deserialize<Dictionary<string, object>>(yamlContent);
+                if (yamlData.ContainsKey("path"))
+                    datasetPath = yamlData["path"]?.ToString();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to parse YAML file: {ex.Message}", "YAML Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(datasetPath) || !Directory.Exists(datasetPath))
+            {
+                System.Windows.MessageBox.Show("The 'path' field in the YAML file is missing or points to a directory that does not exist.",
+                    "Invalid Path", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            btnRenameToUids.IsEnabled = false;
+            btnBrowseRenameUid.IsEnabled = false;
+
+            try
+            {
+                string path = datasetPath;
+                await Task.Run(() => RenameImagesToUids(path));
+            }
+            catch (Exception ex)
+            {
+                LogUtilitiesMessage($"Error: {ex.Message}");
+                System.Windows.MessageBox.Show($"Error: {ex.Message}", "Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                btnRenameToUids.IsEnabled = true;
+                btnBrowseRenameUid.IsEnabled = true;
+            }
+        }
+
+        private void RenameImagesToUids(string datasetPath)
+        {
+
+            var imageExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".bmp", ".webp" };
+            string[] splits = { "train", "val", "test" };
+
+            int totalRenamed = 0;
+            int totalSkipped = 0;
+
+            foreach (var split in splits)
+            {
+                string imagesDir = Path.Combine(datasetPath, "images", split);
+                string labelsDir = Path.Combine(datasetPath, "labels", split);
+
+                if (!Directory.Exists(imagesDir))
+                    continue;
+
+                string[] imageFiles = Directory.GetFiles(imagesDir)
+                    .Where(f => imageExtensions.Contains(Path.GetExtension(f)))
+                    .ToArray();
+
+                if (imageFiles.Length == 0)
+                {
+                    LogUtilitiesMessage($"[{split}] No images found, skipping.");
+                    continue;
+                }
+
+                LogUtilitiesMessage($"[{split}] Found {imageFiles.Length} image(s). Renaming...");
+
+                foreach (var imagePath in imageFiles)
+                {
+                    string imageExt = Path.GetExtension(imagePath);
+                    string oldBaseName = Path.GetFileNameWithoutExtension(imagePath);
+                    string newBaseName = Guid.NewGuid().ToString();
+                    string newImagePath = Path.Combine(imagesDir, newBaseName + imageExt);
+
+                    if (File.Exists(newImagePath))
+                    {
+                        LogUtilitiesMessage($"[{split}] Skipped (collision): {oldBaseName}{imageExt}");
+                        totalSkipped++;
+                        continue;
+                    }
+
+                    File.Move(imagePath, newImagePath);
+
+                    // Rename matching label file if it exists
+                    string labelPath = Path.Combine(labelsDir, oldBaseName + ".txt");
+                    if (File.Exists(labelPath))
+                    {
+                        string newLabelPath = Path.Combine(labelsDir, newBaseName + ".txt");
+                        File.Move(labelPath, newLabelPath);
+                    }
+
+                    totalRenamed++;
+                }
+
+                LogUtilitiesMessage($"[{split}] Done. Renamed {imageFiles.Length - totalSkipped} image(s).");
+            }
+
+            LogUtilitiesMessage($"Completed. Total renamed: {totalRenamed}, Total skipped: {totalSkipped}.");
+        }
+
         private void LogUtilitiesMessage(string message)
         {
             Dispatcher.Invoke(() =>
