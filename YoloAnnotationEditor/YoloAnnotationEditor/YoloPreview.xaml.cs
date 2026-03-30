@@ -70,6 +70,43 @@ namespace YoloAnnotationEditor
         }
         #endregion
 
+        private (int width, int height)? GetTargetResolution()
+        {
+            int selectedIndex = 0;
+            _dispatcher.Invoke(() => selectedIndex = CbModelResolution.SelectedIndex);
+            return selectedIndex switch
+            {
+                1 => (1280, 720),   // 720p
+                2 => (1920, 1080),  // 1080p
+                _ => null           // Full resolution
+            };
+        }
+
+        private static (SKImage scaledImage, double scaleFactor) ScaleImageForDetection(SKImage original, (int width, int height)? targetResolution)
+        {
+            if (targetResolution == null)
+                return (original, 1.0);
+
+            var (targetW, targetH) = targetResolution.Value;
+            int origW = original.Width;
+            int origH = original.Height;
+
+            if (origW <= targetW && origH <= targetH)
+                return (original, 1.0);
+
+            double scaleX = (double)targetW / origW;
+            double scaleY = (double)targetH / origH;
+            double scale = Math.Min(scaleX, scaleY);
+
+            int newW = (int)(origW * scale);
+            int newH = (int)(origH * scale);
+
+            using var surface = SKSurface.Create(new SKImageInfo(newW, newH));
+            var canvas = surface.Canvas;
+            canvas.DrawImage(original, new SKRect(0, 0, newW, newH));
+            return (surface.Snapshot(), scale);
+        }
+
         public YoloPreview()
         {
             InitializeComponent();
@@ -482,11 +519,18 @@ namespace YoloAnnotationEditor
                         {
                             try
                             {
-                                // Run inference on frame
-                                List<ObjectDetection> results = _yolo.RunObjectDetection(newFrame);
+                                // Scale frame for detection if needed
+                                var targetRes = GetTargetResolution();
+                                var (scaledFrame, scaleFactor) = ScaleImageForDetection(newFrame, targetRes);
 
-                                // Draw results
-                                newFrame = DrawDetections(newFrame, results);
+                                // Run inference on (possibly scaled) frame
+                                List<ObjectDetection> results = _yolo.RunObjectDetection(scaledFrame);
+
+                                if (scaledFrame != newFrame)
+                                    scaledFrame.Dispose();
+
+                                // Draw results on original-resolution frame, mapping coords back
+                                newFrame = DrawDetections(newFrame, results, scaleFactor);
                             }
                             catch (Exception ex)
                             {
@@ -560,7 +604,7 @@ namespace YoloAnnotationEditor
             }
         }
 
-        private SKImage DrawDetections(SKImage image, List<ObjectDetection> detections)
+        private SKImage DrawDetections(SKImage image, List<ObjectDetection> detections, double scaleFactor = 1.0)
         {
             // Create a surface to draw on
             using var surface = SKSurface.Create(new SKImageInfo(image.Width, image.Height));
@@ -579,8 +623,15 @@ namespace YoloAnnotationEditor
                     StrokeWidth = 2
                 };
 
-                // Draw bounding box
-                var rect = detection.BoundingBox;
+                // Map bounding box from scaled coordinates back to original image coordinates
+                var bb = detection.BoundingBox;
+                var rect = scaleFactor != 1.0
+                    ? new SKRect(
+                        (float)(bb.Left / scaleFactor),
+                        (float)(bb.Top / scaleFactor),
+                        (float)(bb.Right / scaleFactor),
+                        (float)(bb.Bottom / scaleFactor))
+                    : bb;
                 canvas.DrawRect(rect, paint);
 
                 // Draw label with confidence

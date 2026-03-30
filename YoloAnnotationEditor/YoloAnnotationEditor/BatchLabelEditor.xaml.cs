@@ -90,6 +90,7 @@ namespace YoloAnnotationEditor
 
         // YOLO model (optional, needed for Redetect)
         private readonly Yolo _yolo;
+        private readonly (int width, int height)? _targetResolution;
 
         // Results tracking
         private bool _operationCompleted;
@@ -100,13 +101,15 @@ namespace YoloAnnotationEditor
             IEnumerable<ImageItem> images,
             Dictionary<int, string> classNames,
             Dictionary<int, SolidColorBrush> classColors,
-            Yolo yolo = null)
+            Yolo yolo = null,
+            (int width, int height)? targetResolution = null)
         {
             InitializeComponent();
 
             _classNames = classNames;
             _classColors = classColors;
             _yolo = yolo;
+            _targetResolution = targetResolution;
 
             foreach (var img in images)
             {
@@ -942,6 +945,31 @@ namespace YoloAnnotationEditor
             });
         }
 
+        private static (SKImage scaledImage, double scaleFactor) ScaleImageForDetection(SKImage original, (int width, int height)? targetResolution)
+        {
+            if (targetResolution == null)
+                return (original, 1.0);
+
+            var (targetW, targetH) = targetResolution.Value;
+            int origW = original.Width;
+            int origH = original.Height;
+
+            if (origW <= targetW && origH <= targetH)
+                return (original, 1.0);
+
+            double scaleX = (double)targetW / origW;
+            double scaleY = (double)targetH / origH;
+            double scale = Math.Min(scaleX, scaleY);
+
+            int newW = (int)(origW * scale);
+            int newH = (int)(origH * scale);
+
+            using var surface = SKSurface.Create(new SKImageInfo(newW, newH));
+            var canvas = surface.Canvas;
+            canvas.DrawImage(original, new SKRect(0, 0, newW, newH));
+            return (surface.Snapshot(), scale);
+        }
+
         // Returns number of detections, or -1 if skipped
         private int ProcessRedetect(BatchImageItem img, RedetectMode mode)
         {
@@ -958,9 +986,15 @@ namespace YoloAnnotationEditor
             using var skImg = SKImage.FromEncodedData(img.FilePath);
             if (skImg == null) return 0;
 
-            var detections = _yolo.RunObjectDetection(skImg)
+            // Scale image for detection if needed
+            var (scaledImg, scaleFactor) = ScaleImageForDetection(skImg, _targetResolution);
+
+            var detections = _yolo.RunObjectDetection(scaledImg)
                 .Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
                 .ToList();
+
+            if (scaledImg != skImg)
+                scaledImg.Dispose();
 
             var labels = new List<YoloLabel>();
             foreach (var detection in detections)
@@ -972,13 +1006,14 @@ namespace YoloAnnotationEditor
                 var bb = detection.BoundingBox;
                 double imgW = skImg.Width;
                 double imgH = skImg.Height;
+                // Map bounding box from scaled coordinates back to original image
                 labels.Add(new YoloLabel
                 {
                     ClassId = detection.Label.Index,
-                    CenterX = (float)(bb.MidX / imgW),
-                    CenterY = (float)(bb.MidY / imgH),
-                    Width = (float)(bb.Width / imgW),
-                    Height = (float)(bb.Height / imgH)
+                    CenterX = (float)((bb.MidX / scaleFactor) / imgW),
+                    CenterY = (float)((bb.MidY / scaleFactor) / imgH),
+                    Width = (float)((bb.Width / scaleFactor) / imgW),
+                    Height = (float)((bb.Height / scaleFactor) / imgH)
                 });
             }
 

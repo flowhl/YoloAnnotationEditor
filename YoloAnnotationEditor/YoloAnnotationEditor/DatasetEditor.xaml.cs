@@ -684,7 +684,7 @@ namespace YoloAnnotationEditor
                     return;
             }
 
-            var dialog = new BatchLabelEditor(_allImages, _classNames, _classColors, _yolo);
+            var dialog = new BatchLabelEditor(_allImages, _classNames, _classColors, _yolo, GetTargetResolution());
             dialog.Owner = Window.GetWindow(this);
             var dialogResult = dialog.ShowDialog();
 
@@ -1615,6 +1615,49 @@ namespace YoloAnnotationEditor
 
         #region AI Annotations
 
+        private (int width, int height)? GetTargetResolution()
+        {
+            int selectedIndex = 0;
+            Dispatcher.Invoke(() => selectedIndex = CbModelResolution.SelectedIndex);
+            return selectedIndex switch
+            {
+                1 => (1280, 720),   // 720p
+                2 => (1920, 1080),  // 1080p
+                _ => null           // Full resolution
+            };
+        }
+
+        /// <summary>
+        /// Scales an SKImage to fit within the target resolution while preserving aspect ratio.
+        /// Returns the scaled image (or the original if no scaling needed) and the scale factor.
+        /// </summary>
+        private static (SKImage scaledImage, double scaleFactor) ScaleImageForDetection(SKImage original, (int width, int height)? targetResolution)
+        {
+            if (targetResolution == null)
+                return (original, 1.0);
+
+            var (targetW, targetH) = targetResolution.Value;
+            int origW = original.Width;
+            int origH = original.Height;
+
+            // No scaling needed if already within target
+            if (origW <= targetW && origH <= targetH)
+                return (original, 1.0);
+
+            // Scale to fit within target while preserving aspect ratio
+            double scaleX = (double)targetW / origW;
+            double scaleY = (double)targetH / origH;
+            double scale = Math.Min(scaleX, scaleY);
+
+            int newW = (int)(origW * scale);
+            int newH = (int)(origH * scale);
+
+            using var surface = SKSurface.Create(new SKImageInfo(newW, newH));
+            var canvas = surface.Canvas;
+            canvas.DrawImage(original, new SKRect(0, 0, newW, newH));
+            return (surface.Snapshot(), scale);
+        }
+
         private void BrowseOnnxButton_Click(object sender, RoutedEventArgs e)
         {
             var openFileDialog = new OpenFileDialog
@@ -1718,8 +1761,13 @@ namespace YoloAnnotationEditor
             }
 
             var skImg = image.ToSKImage();
+            var targetRes = GetTargetResolution();
+            var (scaledImg, scaleFactor) = ScaleImageForDetection(skImg, targetRes);
 
-            var labels = _yolo.RunObjectDetection(skImg).Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5);
+            var labels = _yolo.RunObjectDetection(scaledImg).Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5);
+
+            if (scaledImg != skImg)
+                scaledImg.Dispose();
 
             if (labels.Any())
             {
@@ -1739,11 +1787,11 @@ namespace YoloAnnotationEditor
             //At least 40% confidence and bounding box size > 5 pixels
             foreach (var label in labels)
             {
-                GenerateAnnotationFromYolo(label, clearAnnoations);
+                GenerateAnnotationFromYolo(label, clearAnnoations, scaleFactor);
             }
         }
 
-        private void GenerateAnnotationFromYolo(ObjectDetection label, bool clearAnnoations)
+        private void GenerateAnnotationFromYolo(ObjectDetection label, bool clearAnnoations, double scaleFactor = 1.0)
         {
             if (label == null || label.Label == null)
             {
@@ -1768,10 +1816,11 @@ namespace YoloAnnotationEditor
 
             var bb = label.BoundingBox;
 
-            double x = bb.MidX / image.Width;
-            double y = bb.MidY / image.Height;
-            double width = bb.Width / image.Width;
-            double height = bb.Height / image.Height;
+            // Map bounding box from scaled coordinates back to original image coordinates
+            double x = (bb.MidX / scaleFactor) / image.Width;
+            double y = (bb.MidY / scaleFactor) / image.Height;
+            double width = (bb.Width / scaleFactor) / image.Width;
+            double height = (bb.Height / scaleFactor) / image.Height;
 
             // Create new YOLO label
             YoloLabel newLabel = new YoloLabel
@@ -1837,6 +1886,8 @@ namespace YoloAnnotationEditor
             int processedImages = 0;
             int totalImages = _allImages.Count;
 
+            var targetRes = GetTargetResolution();
+
             try
             {
                 await Task.Run(() =>
@@ -1849,16 +1900,22 @@ namespace YoloAnnotationEditor
                             using var skImg = SKImage.FromEncodedData(imageItem.FilePath);
                             if (skImg == null) continue;
 
+                            // Scale image for detection if needed
+                            var (scaledImg, scaleFactor) = ScaleImageForDetection(skImg, targetRes);
+
                             // Run detection
-                            var detections = _yolo.RunObjectDetection(skImg)
+                            var detections = _yolo.RunObjectDetection(scaledImg)
                                 .Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
                                 .ToList();
+
+                            if (scaledImg != skImg)
+                                scaledImg.Dispose();
 
                             // Clear existing annotations
                             imageItem.Annotations.Clear();
                             imageItem.ClassIds.Clear();
 
-                            // Add new detections
+                            // Add new detections - map coordinates back to original image
                             foreach (var detection in detections)
                             {
                                 if (detection?.Label == null) continue;
@@ -1871,10 +1928,10 @@ namespace YoloAnnotationEditor
                                 var newLabel = new YoloLabel
                                 {
                                     ClassId = detection.Label.Index,
-                                    CenterX = (float)(bb.MidX / imgW),
-                                    CenterY = (float)(bb.MidY / imgH),
-                                    Width = (float)(bb.Width / imgW),
-                                    Height = (float)(bb.Height / imgH)
+                                    CenterX = (float)((bb.MidX / scaleFactor) / imgW),
+                                    CenterY = (float)((bb.MidY / scaleFactor) / imgH),
+                                    Width = (float)((bb.Width / scaleFactor) / imgW),
+                                    Height = (float)((bb.Height / scaleFactor) / imgH)
                                 };
 
                                 imageItem.Annotations.Add(newLabel);

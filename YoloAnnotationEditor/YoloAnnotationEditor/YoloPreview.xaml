@@ -28,7 +28,17 @@
 
             <!-- ONNX Model Selection -->
             <Label Grid.Row="0" Grid.Column="0" Content="ONNX Model:" VerticalAlignment="Center" />
-            <TextBox Grid.Row="0" Grid.Column="1" x:Name="OnnxPathTextBox" Margin="5" IsReadOnly="True" />
+            <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal">
+                <TextBox x:Name="OnnxPathTextBox" Margin="5" IsReadOnly="True" MinWidth="200"
+                         HorizontalAlignment="Stretch" Width="Auto"/>
+                <Label Content="Resolution:" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                <ComboBox x:Name="CbModelResolution" Width="100" Margin="5" VerticalAlignment="Center"
+                          SelectedIndex="0">
+                    <ComboBoxItem Content="Full"/>
+                    <ComboBoxItem Content="720p"/>
+                    <ComboBoxItem Content="1080p"/>
+                </ComboBox>
+            </StackPanel>
             <Button Grid.Row="0" Grid.Column="2" x:Name="BrowseButton" Content="Browse" Margin="5" Width="80" Click="BrowseButton_Click" />
 
             <!-- Source Selection -->
