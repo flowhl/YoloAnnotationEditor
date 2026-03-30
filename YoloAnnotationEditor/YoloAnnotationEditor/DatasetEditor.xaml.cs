@@ -684,7 +684,7 @@ namespace YoloAnnotationEditor
                     return;
             }
 
-            var dialog = new BatchLabelEditor(_allImages, _classNames, _classColors);
+            var dialog = new BatchLabelEditor(_allImages, _classNames, _classColors, _yolo);
             dialog.Owner = Window.GetWindow(this);
             var dialogResult = dialog.ShowDialog();
 

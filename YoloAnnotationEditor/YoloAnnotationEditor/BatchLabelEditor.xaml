@@ -21,7 +21,7 @@
             <Border x:Name="Step1Indicator" Background="#2196F3" CornerRadius="12" Padding="8,4" Margin="0,0,5,0">
                 <TextBlock Text="1. Select Images" Foreground="White" FontWeight="SemiBold"/>
             </Border>
-            <TextBlock Text="→" VerticalAlignment="Center" Margin="5,0" FontSize="16" Foreground="Gray"/>
+            <TextBlock x:Name="Step2Arrow" Text="→" VerticalAlignment="Center" Margin="5,0" FontSize="16" Foreground="Gray"/>
             <Border x:Name="Step2Indicator" Background="LightGray" CornerRadius="12" Padding="8,4" Margin="0,0,5,0">
                 <TextBlock x:Name="Step2Text" Text="2. Draw Region" Foreground="DarkGray" FontWeight="SemiBold"/>
             </Border>
@@ -61,8 +61,13 @@
                                          GroupName="Operation" FontSize="13"
                                          Checked="Operation_Changed" Margin="0,0,20,0"/>
                         </StackPanel>
-                        <StackPanel Orientation="Horizontal">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                             <RadioButton x:Name="RbDelete" Content=" Delete all labels in region"
+                                         GroupName="Operation" FontSize="13"
+                                         Checked="Operation_Changed"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RbRedetect" Content=" Redetect using YOLO model"
                                          GroupName="Operation" FontSize="13"
                                          Checked="Operation_Changed"/>
                         </StackPanel>
@@ -269,6 +274,35 @@
                     <StackPanel>
                         <TextBlock Text="No further configuration required." FontWeight="SemiBold" Margin="0,0,0,5"/>
                         <TextBlock x:Name="TxtDeletePreview" TextWrapping="Wrap" FontSize="13"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Redetect-mode config -->
+                <Border Grid.Row="2" x:Name="RedetectConfigPanel"
+                        Background="#E8EAF6" BorderBrush="#3F51B5" BorderThickness="1"
+                        CornerRadius="4" Padding="12" Margin="0,0,0,0"
+                        Visibility="Collapsed">
+                    <StackPanel>
+                        <TextBlock Text="Choose which images to redetect:" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                        <RadioButton x:Name="RbRedetectAll"
+                                     Content="Redetect all selected images (delete existing labels and replace with YOLO detections)"
+                                     GroupName="RedetectMode" FontSize="13" IsChecked="True" Margin="0,0,0,10"/>
+
+                        <RadioButton x:Name="RbRedetectUnlabeledOnly"
+                                     Content="Only redetect images that have no existing labels (skip already-labeled images)"
+                                     GroupName="RedetectMode" FontSize="13" Margin="0,0,0,10"/>
+
+                        <Border Background="#C5CAE9" CornerRadius="4" Padding="10" Margin="0,5,0,0">
+                            <StackPanel>
+                                <TextBlock Text="Detection settings:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                                <TextBlock Text="Confidence threshold: > 0.4" FontSize="12" Foreground="#37474F"/>
+                                <TextBlock Text="Minimum bounding box size: 5 × 5 px" FontSize="12" Foreground="#37474F"/>
+                            </StackPanel>
+                        </Border>
+
+                        <TextBlock x:Name="TxtRedetectSummary" TextWrapping="Wrap" FontSize="13"
+                                   Foreground="#283593" Margin="0,10,0,0"/>
                     </StackPanel>
                 </Border>
 

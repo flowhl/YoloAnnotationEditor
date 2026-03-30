@@ -10,7 +10,9 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using SkiaSharp;
 using YoloAnnotationEditor.Models;
+using YoloDotNet;
 using Brush = System.Windows.Media.Brush;
 using Brushes = System.Windows.Media.Brushes;
 using Color = System.Windows.Media.Color;
@@ -21,7 +23,8 @@ using Rectangle = System.Windows.Shapes.Rectangle;
 
 namespace YoloAnnotationEditor
 {
-    public enum BatchOperation { Replace, Add, Delete }
+    public enum BatchOperation { Replace, Add, Delete, Redetect }
+    public enum RedetectMode { RedetectAll, RedetectUnlabeledOnly }
     public enum OverlapMode { AlwaysAdd, SkipIfNearby, DeleteNearbyThenAdd }
 
     public class BatchImageItem : INotifyPropertyChanged
@@ -85,6 +88,9 @@ namespace YoloAnnotationEditor
         // Selected class (Replace / Add)
         private ClassItem _selectedClass;
 
+        // YOLO model (optional, needed for Redetect)
+        private readonly Yolo _yolo;
+
         // Results tracking
         private bool _operationCompleted;
         private int _totalLabelsAffected;
@@ -93,12 +99,14 @@ namespace YoloAnnotationEditor
         public BatchLabelEditor(
             IEnumerable<ImageItem> images,
             Dictionary<int, string> classNames,
-            Dictionary<int, SolidColorBrush> classColors)
+            Dictionary<int, SolidColorBrush> classColors,
+            Yolo yolo = null)
         {
             InitializeComponent();
 
             _classNames = classNames;
             _classColors = classColors;
+            _yolo = yolo;
 
             foreach (var img in images)
             {
@@ -129,6 +137,11 @@ namespace YoloAnnotationEditor
 
             LbClasses.ItemsSource = _allClasses;
 
+            // Disable Redetect option if no YOLO model is loaded
+            RbRedetect.IsEnabled = _yolo != null;
+            if (_yolo == null)
+                RbRedetect.ToolTip = "Load a YOLO model first to enable this option";
+
             UpdateSelectionCount();
             UpdateStepIndicators();
             UpdateOperationHint();
@@ -141,6 +154,7 @@ namespace YoloAnnotationEditor
             if (RbReplace?.IsChecked == true) _operation = BatchOperation.Replace;
             else if (RbAdd?.IsChecked == true) _operation = BatchOperation.Add;
             else if (RbDelete?.IsChecked == true) _operation = BatchOperation.Delete;
+            else if (RbRedetect?.IsChecked == true) _operation = BatchOperation.Redetect;
 
             UpdateOperationHint();
         }
@@ -184,6 +198,7 @@ namespace YoloAnnotationEditor
                 BatchOperation.Add =>
                     "For each selected image that has NO label in the region, adds a new label using the drawn region as the bounding box.",
                 BatchOperation.Delete => "Removes all labels whose center falls in the drawn region.",
+                BatchOperation.Redetect => "Runs YOLO object detection on selected images to generate annotations automatically.",
                 _ => ""
             };
         }
@@ -195,13 +210,25 @@ namespace YoloAnnotationEditor
         private void BtnNext_Click(object sender, RoutedEventArgs e)
         {
             if (!ValidateCurrentStep()) return;
-            SetStep(_currentStep + 1);
+
+            int nextStep = _currentStep + 1;
+            // Redetect skips Step 2 (draw region): go from 1 -> 3, and from 3 -> 4
+            if (_operation == BatchOperation.Redetect && _currentStep == 1)
+                nextStep = 3;
+
+            SetStep(nextStep);
         }
 
         private void BtnBack_Click(object sender, RoutedEventArgs e)
         {
             if (_operationCompleted) return;
-            SetStep(_currentStep - 1);
+
+            int prevStep = _currentStep - 1;
+            // Redetect skips Step 2: go from 3 -> 1
+            if (_operation == BatchOperation.Redetect && _currentStep == 3)
+                prevStep = 1;
+
+            SetStep(prevStep);
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
@@ -225,6 +252,8 @@ namespace YoloAnnotationEditor
                     return true;
 
                 case 2:
+                    if (_operation == BatchOperation.Redetect)
+                        return true; // Redetect skips region drawing
                     if (!_hasRegion)
                     {
                         MessageBox.Show("Please draw a bounding box region on the reference image.",
@@ -234,6 +263,8 @@ namespace YoloAnnotationEditor
                     return true;
 
                 case 3:
+                    if (_operation == BatchOperation.Redetect)
+                        return true; // Redetect config is always valid
                     // Delete needs no class
                     if (_operation != BatchOperation.Delete && _selectedClass == null)
                     {
@@ -301,16 +332,19 @@ namespace YoloAnnotationEditor
 
         private void ConfigureStep3()
         {
-            bool needsClass = _operation != BatchOperation.Delete;
+            bool isRedetect = _operation == BatchOperation.Redetect;
+            bool needsClass = _operation != BatchOperation.Delete && !isRedetect;
             ClassPickerPanel.Visibility = needsClass ? Visibility.Visible : Visibility.Collapsed;
             OverlapOptionsPanel.Visibility = _operation == BatchOperation.Add ? Visibility.Visible : Visibility.Collapsed;
             DeleteInfoPanel.Visibility = _operation == BatchOperation.Delete ? Visibility.Visible : Visibility.Collapsed;
+            RedetectConfigPanel.Visibility = isRedetect ? Visibility.Visible : Visibility.Collapsed;
 
             TxtStep3Header.Text = _operation switch
             {
                 BatchOperation.Replace => "Select the new class to assign to all labels in the region:",
                 BatchOperation.Add => "Select the class for the new label, and choose how to handle images that already have a label in the region:",
                 BatchOperation.Delete => "Delete all labels in the region:",
+                BatchOperation.Redetect => "Configure YOLO redetection:",
                 _ => "Configure the operation:"
             };
 
@@ -323,6 +357,21 @@ namespace YoloAnnotationEditor
                     $"Region (normalized): X=[{_regionLeft:F4}, {_regionRight:F4}], Y=[{_regionTop:F4}, {_regionBottom:F4}]";
                 PreviewBorder.Visibility = Visibility.Collapsed;
             }
+
+            if (isRedetect)
+            {
+                int images = _allBatchImages.Count(i => i.IsSelected);
+                int unlabeled = _allBatchImages.Count(i => i.IsSelected && i.AnnotationCount == 0);
+                TxtRedetectSummary.Text =
+                    $"{images} image(s) selected, {unlabeled} of which have no existing labels.";
+                PreviewBorder.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private RedetectMode GetCurrentRedetectMode()
+        {
+            if (RbRedetectUnlabeledOnly?.IsChecked == true) return RedetectMode.RedetectUnlabeledOnly;
+            return RedetectMode.RedetectAll;
         }
 
         private void UpdateStepIndicators()
@@ -331,9 +380,22 @@ namespace YoloAnnotationEditor
             var done = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
             var idle = new SolidColorBrush(Color.FromRgb(0xD0, 0xD0, 0xD0));
 
+            bool isRedetect = _operation == BatchOperation.Redetect;
+
             Step1Indicator.Background = _currentStep == 1 ? active : done;
+
+            // Hide Step 2 indicator for Redetect (no region drawing needed)
+            Step2Indicator.Visibility = isRedetect ? Visibility.Collapsed : Visibility.Visible;
             Step2Indicator.Background = _currentStep == 2 ? active : (_currentStep > 2 ? done : idle);
+            // Also hide the arrow before Step 2
+            Step2Arrow.Visibility = isRedetect ? Visibility.Collapsed : Visibility.Visible;
+
+            // Relabel Step 3 for Redetect
+            Step3Text.Text = isRedetect ? "2. Configure" : "3. Configure";
             Step3Indicator.Background = _currentStep == 3 ? active : (_currentStep > 3 ? done : idle);
+
+            // Relabel Step 4 for Redetect
+            Step4Text.Text = isRedetect ? "3. Apply" : "4. Apply";
             Step4Indicator.Background = _currentStep == 4 ? active : idle;
 
             var white = Brushes.White;
@@ -715,8 +777,14 @@ namespace YoloAnnotationEditor
                 BatchOperation.Replace => "⚠ Confirm Batch Replace",
                 BatchOperation.Add => "⚠ Confirm Batch Add",
                 BatchOperation.Delete => "⚠ Confirm Batch Delete",
+                BatchOperation.Redetect => "⚠ Confirm Batch Redetect",
                 _ => "⚠ Confirm Batch Operation"
             };
+
+            var redetectMode = GetCurrentRedetectMode();
+            string redetectModeDesc = redetectMode == RedetectMode.RedetectAll
+                ? "ALL images (existing labels will be deleted and replaced)"
+                : "only images WITHOUT existing labels";
 
             TxtConfirmationDetails.Text = _operation switch
             {
@@ -732,6 +800,10 @@ namespace YoloAnnotationEditor
                 BatchOperation.Delete =>
                     $"Will delete {labelCount} label(s) from {selectedImageCount} selected image(s).\n\n" +
                     $"Region (normalized): X=[{_regionLeft:F4}, {_regionRight:F4}], Y=[{_regionTop:F4}, {_regionBottom:F4}]",
+                BatchOperation.Redetect =>
+                    $"Will run YOLO redetection on {selectedImageCount} image(s).\n" +
+                    $"Mode: {redetectModeDesc}.\n\n" +
+                    $"Confidence threshold: > 0.4, minimum bbox size: 5×5 px.",
                 _ => ""
             };
         }
@@ -743,6 +815,7 @@ namespace YoloAnnotationEditor
                 BatchOperation.Replace => $"replace labels in the region with class \"{_selectedClass.Name}\"",
                 BatchOperation.Add => $"add \"{_selectedClass.Name}\" labels to images missing them in the region",
                 BatchOperation.Delete => "delete all labels in the region",
+                BatchOperation.Redetect => "run YOLO redetection",
                 _ => "apply the batch operation"
             };
 
@@ -775,6 +848,7 @@ namespace YoloAnnotationEditor
 
             var overlapMode = GetCurrentOverlapMode();
             double proximityPx = GetProximityPx();
+            var redetectMode = GetCurrentRedetectMode();
 
             foreach (var img in selectedImages)
             {
@@ -795,6 +869,7 @@ namespace YoloAnnotationEditor
                         BatchOperation.Replace => await Task.Run(() => ProcessReplace(img)),
                         BatchOperation.Add => await Task.Run(() => ProcessAdd(img, overlapMode, proximityPx)),
                         BatchOperation.Delete => await Task.Run(() => ProcessDelete(img)),
+                        BatchOperation.Redetect => await Task.Run(() => ProcessRedetect(img, redetectMode)),
                         _ => 0
                     };
 
@@ -809,10 +884,23 @@ namespace YoloAnnotationEditor
                             _ => "no change"
                         },
                         BatchOperation.Delete => changed > 0 ? $"deleted {changed} label(s)" : "no labels in region",
+                        BatchOperation.Redetect => changed switch
+                        {
+                            >= 0 => $"detected {changed} label(s)",
+                            -1 => "skipped (already has labels)",
+                            _ => "no detections"
+                        },
                         _ => ""
                     };
 
-                    if (changed != 0 && changed != -1) { _totalLabelsAffected++; _totalFilesModified++; }
+                    if (_operation == BatchOperation.Redetect)
+                    {
+                        if (changed >= 0) { _totalLabelsAffected += changed; _totalFilesModified++; }
+                    }
+                    else
+                    {
+                        if (changed != 0 && changed != -1) { _totalLabelsAffected++; _totalFilesModified++; }
+                    }
 
                     await Dispatcher.InvokeAsync(() => AppendLog($"  {img.FileName}: {outcome}"));
                 }
@@ -836,6 +924,8 @@ namespace YoloAnnotationEditor
                         $"Added labels to {_totalFilesModified} file(s) (class \"{_selectedClass?.Name}\").",
                     BatchOperation.Delete =>
                         $"Deleted {_totalLabelsAffected} label(s) from {_totalFilesModified} file(s).",
+                    BatchOperation.Redetect =>
+                        $"Detected {_totalLabelsAffected} label(s) across {_totalFilesModified} image(s).",
                     _ => "Done."
                 };
                 TxtResults.Text += $"\nProcessed {totalImages} image(s) total.";
@@ -850,6 +940,55 @@ namespace YoloAnnotationEditor
                 else
                     Notify.sendInfo($"Batch {_operation} complete: no labels were changed");
             });
+        }
+
+        // Returns number of detections, or -1 if skipped
+        private int ProcessRedetect(BatchImageItem img, RedetectMode mode)
+        {
+            if (_yolo == null) return 0;
+
+            // In unlabeled-only mode, skip images that already have labels
+            if (mode == RedetectMode.RedetectUnlabeledOnly)
+            {
+                bool hasLabels = File.Exists(img.LabelPath) &&
+                    File.ReadAllLines(img.LabelPath).Any(l => !string.IsNullOrWhiteSpace(l));
+                if (hasLabels) return -1;
+            }
+
+            using var skImg = SKImage.FromEncodedData(img.FilePath);
+            if (skImg == null) return 0;
+
+            var detections = _yolo.RunObjectDetection(skImg)
+                .Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
+                .ToList();
+
+            var labels = new List<YoloLabel>();
+            foreach (var detection in detections)
+            {
+                if (detection?.Label == null) continue;
+                if (!_classNames.ContainsKey(detection.Label.Index)) continue;
+                if (_classNames[detection.Label.Index]?.ToLower().Trim() != detection.Label.Name?.ToLower().Trim()) continue;
+
+                var bb = detection.BoundingBox;
+                double imgW = skImg.Width;
+                double imgH = skImg.Height;
+                labels.Add(new YoloLabel
+                {
+                    ClassId = detection.Label.Index,
+                    CenterX = (float)(bb.MidX / imgW),
+                    CenterY = (float)(bb.MidY / imgH),
+                    Width = (float)(bb.Width / imgW),
+                    Height = (float)(bb.Height / imgH)
+                });
+            }
+
+            var lines = labels.Select(label => FormatYoloLabel(label));
+            File.WriteAllLines(img.LabelPath, lines);
+
+            // Update the annotation count so the UI reflects changes
+            img.AnnotationCount = labels.Count;
+
+            return labels.Count;
         }
 
         // Returns number of labels changed
