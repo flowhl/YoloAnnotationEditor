@@ -91,6 +91,7 @@ namespace YoloAnnotationEditor
         // YOLO model (optional, needed for Redetect)
         private readonly Yolo _yolo;
         private readonly (int width, int height)? _targetResolution;
+        private readonly double _confidenceThreshold;
 
         // Results tracking
         private bool _operationCompleted;
@@ -102,7 +103,8 @@ namespace YoloAnnotationEditor
             Dictionary<int, string> classNames,
             Dictionary<int, SolidColorBrush> classColors,
             Yolo yolo = null,
-            (int width, int height)? targetResolution = null)
+            (int width, int height)? targetResolution = null,
+            double confidenceThreshold = 0.4)
         {
             InitializeComponent();
 
@@ -110,6 +112,7 @@ namespace YoloAnnotationEditor
             _classColors = classColors;
             _yolo = yolo;
             _targetResolution = targetResolution;
+            _confidenceThreshold = confidenceThreshold;
 
             foreach (var img in images)
             {
@@ -144,6 +147,8 @@ namespace YoloAnnotationEditor
             RbRedetect.IsEnabled = _yolo != null;
             if (_yolo == null)
                 RbRedetect.ToolTip = "Load a YOLO model first to enable this option";
+
+            TxtConfidenceDisplay.Text = $"Confidence threshold: > {_confidenceThreshold:0.##}";
 
             UpdateSelectionCount();
             UpdateStepIndicators();
@@ -806,7 +811,7 @@ namespace YoloAnnotationEditor
                 BatchOperation.Redetect =>
                     $"Will run YOLO redetection on {selectedImageCount} image(s).\n" +
                     $"Mode: {redetectModeDesc}.\n\n" +
-                    $"Confidence threshold: > 0.4, minimum bbox size: 5×5 px.",
+                    $"Confidence threshold: > {_confidenceThreshold:0.##}, minimum bbox size: 5×5 px.",
                 _ => ""
             };
         }
@@ -990,7 +995,7 @@ namespace YoloAnnotationEditor
             var (scaledImg, scaleFactor) = ScaleImageForDetection(skImg, _targetResolution);
 
             var detections = _yolo.RunObjectDetection(scaledImg)
-                .Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
+                .Where(x => x.Confidence > _confidenceThreshold && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
                 .ToList();
 
             if (scaledImg != skImg)

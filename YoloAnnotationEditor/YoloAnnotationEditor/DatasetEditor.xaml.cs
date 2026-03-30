@@ -684,7 +684,7 @@ namespace YoloAnnotationEditor
                     return;
             }
 
-            var dialog = new BatchLabelEditor(_allImages, _classNames, _classColors, _yolo, GetTargetResolution());
+            var dialog = new BatchLabelEditor(_allImages, _classNames, _classColors, _yolo, GetTargetResolution(), GetConfidenceThreshold());
             dialog.Owner = Window.GetWindow(this);
             var dialogResult = dialog.ShowDialog();
 
@@ -1615,6 +1615,18 @@ namespace YoloAnnotationEditor
 
         #region AI Annotations
 
+        private double GetConfidenceThreshold()
+        {
+            double threshold = 0.4;
+            Dispatcher.Invoke(() =>
+            {
+                if (double.TryParse(TxtConfidenceThreshold.Text, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double val) && val >= 0 && val <= 1)
+                    threshold = val;
+            });
+            return threshold;
+        }
+
         private (int width, int height)? GetTargetResolution()
         {
             int selectedIndex = 0;
@@ -1762,9 +1774,10 @@ namespace YoloAnnotationEditor
 
             var skImg = image.ToSKImage();
             var targetRes = GetTargetResolution();
+            var confidenceThreshold = GetConfidenceThreshold();
             var (scaledImg, scaleFactor) = ScaleImageForDetection(skImg, targetRes);
 
-            var labels = _yolo.RunObjectDetection(scaledImg).Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5);
+            var labels = _yolo.RunObjectDetection(scaledImg).Where(x => x.Confidence > confidenceThreshold && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5);
 
             if (scaledImg != skImg)
                 scaledImg.Dispose();
@@ -1887,6 +1900,7 @@ namespace YoloAnnotationEditor
             int totalImages = _allImages.Count;
 
             var targetRes = GetTargetResolution();
+            var confidenceThreshold = GetConfidenceThreshold();
 
             try
             {
@@ -1905,7 +1919,7 @@ namespace YoloAnnotationEditor
 
                             // Run detection
                             var detections = _yolo.RunObjectDetection(scaledImg)
-                                .Where(x => x.Confidence > 0.4 && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
+                                .Where(x => x.Confidence > confidenceThreshold && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
                                 .ToList();
 
                             if (scaledImg != skImg)

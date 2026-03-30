@@ -60,6 +60,9 @@
                     <ComboBoxItem Content="720p"/>
                     <ComboBoxItem Content="1080p"/>
                 </ComboBox>
+                <Label Content="Confidence:" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                <TextBox x:Name="TxtConfidenceThreshold" Width="50" Margin="5" VerticalAlignment="Center"
+                         Text="0.4" ToolTip="Minimum confidence threshold (0.0 - 1.0)"/>
             </StackPanel>
             <Button Grid.Row="1" Grid.Column="2" x:Name="BrowseOnnxButton" Content="Browse" Margin="5" Width="80" Click="BrowseOnnxButton_Click" />
 

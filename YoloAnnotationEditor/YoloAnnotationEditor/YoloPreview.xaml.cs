@@ -70,6 +70,18 @@ namespace YoloAnnotationEditor
         }
         #endregion
 
+        private double GetConfidenceThreshold()
+        {
+            double threshold = 0.4;
+            _dispatcher.Invoke(() =>
+            {
+                if (double.TryParse(TxtConfidenceThreshold.Text, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out double val) && val >= 0 && val <= 1)
+                    threshold = val;
+            });
+            return threshold;
+        }
+
         private (int width, int height)? GetTargetResolution()
         {
             int selectedIndex = 0;
@@ -521,10 +533,13 @@ namespace YoloAnnotationEditor
                             {
                                 // Scale frame for detection if needed
                                 var targetRes = GetTargetResolution();
+                                var confidenceThreshold = GetConfidenceThreshold();
                                 var (scaledFrame, scaleFactor) = ScaleImageForDetection(newFrame, targetRes);
 
                                 // Run inference on (possibly scaled) frame
-                                List<ObjectDetection> results = _yolo.RunObjectDetection(scaledFrame);
+                                List<ObjectDetection> results = _yolo.RunObjectDetection(scaledFrame)
+                                    .Where(x => x.Confidence > confidenceThreshold && x.BoundingBox.Width > 5 && x.BoundingBox.Height > 5)
+                                    .ToList();
 
                                 if (scaledFrame != newFrame)
                                     scaledFrame.Dispose();

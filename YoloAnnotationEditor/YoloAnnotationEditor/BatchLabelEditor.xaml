@@ -296,7 +296,7 @@
                         <Border Background="#C5CAE9" CornerRadius="4" Padding="10" Margin="0,5,0,0">
                             <StackPanel>
                                 <TextBlock Text="Detection settings:" FontWeight="SemiBold" Margin="0,0,0,5"/>
-                                <TextBlock Text="Confidence threshold: > 0.4" FontSize="12" Foreground="#37474F"/>
+                                <TextBlock x:Name="TxtConfidenceDisplay" Text="Confidence threshold: > 0.4" FontSize="12" Foreground="#37474F"/>
                                 <TextBlock Text="Minimum bounding box size: 5 × 5 px" FontSize="12" Foreground="#37474F"/>
                             </StackPanel>
                         </Border>
